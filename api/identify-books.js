@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     });
   }
   parts.push({
-    text: 'Look at these bookshelf photos. List every book title and author you can identify. Return ONLY a JSON array of objects with "title" and "author" fields. If you cannot identify the author, use an empty string. Example: [{"title":"Sapiens","author":"Yuval Noah Harari"}]. Return ONLY the JSON array, no markdown, no explanation.'
+    text: 'Look at these bookshelf photos carefully. Identify every book visible. For each book, provide the COMPLETE title (not truncated or abbreviated) and the FULL author name. Only include books you can clearly identify — do not guess or hallucinate titles. If you can only see a partial title, try to identify the actual book it belongs to. If you cannot confidently identify a book, skip it. Return ONLY a JSON array of objects with "title" and "author" fields. If you cannot identify the author, use an empty string. Example: [{"title":"Sapiens","author":"Yuval Noah Harari"},{"title":"Atomic Habits","author":"James Clear"}]. Return ONLY the JSON array, no markdown, no explanation.'
   });
 
   try {

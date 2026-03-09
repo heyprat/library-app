@@ -20,7 +20,7 @@ body{
   font-family:'DM Sans',sans-serif;
   min-height:100vh;
   display:flex;align-items:center;justify-content:center;
-  overflow:hidden;position:relative;
+  overflow-x:hidden;overflow-y:auto;position:relative;
 }
 /* Sky background via iframe — identical to main page, no CSS conflicts */
 #sky-bg{
@@ -373,6 +373,16 @@ if (MOCK) {
       const el = document.getElementById('step-' + s);
       el.classList.toggle('active', s === name);
     });
+    // Hide sky background after welcome — stars are distracting on later steps
+    const skyBg = document.getElementById('sky-bg');
+    const skyOverlay = document.getElementById('sky-overlay');
+    if (name === 'welcome') {
+      skyBg.style.display = '';
+      skyOverlay.style.display = '';
+    } else {
+      skyBg.style.display = 'none';
+      skyOverlay.style.display = 'none';
+    }
   }
 
   // --- Check if already signed in ---
