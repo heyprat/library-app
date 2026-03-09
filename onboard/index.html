@@ -26,10 +26,12 @@ body{
 #sky-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 #sky-bg #sky{pointer-events:none}
 #sky-bg .star{pointer-events:none;cursor:default}
-#sky-bg .star .reveal{display:none}
+#sky-bg .star:hover .dot{opacity:unset;transform:unset}
+#sky-bg .star:hover .reveal{opacity:0;transform:translate(-50%,-50%) scale(0.2)}
 #sky-bg #title{display:none}
 #sky-bg .make-own{display:none}
 #sky-bg .modal-bg{display:none}
+#sky-bg #show-all{display:none}
 /* Dim the sky so the form pops */
 #sky-bg::after{
   content:'';position:absolute;inset:0;
