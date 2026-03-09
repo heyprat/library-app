@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Your Night Sky</title>
+<meta name="supabase-url" content="">
+<meta name="supabase-anon-key" content="">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#0a0b0f;color:#e8e6e1;
+  font-family:'DM Sans',sans-serif;
+  min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+}
+.container{
+  max-width:480px;width:90%;padding:40px 0;
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+}
+h1{
+  font-family:'Instrument Serif',serif;
+  font-size:2rem;font-weight:400;
+  color:rgba(212,200,168,.8);
+  margin-bottom:8px;
+}
+h2{
+  font-family:'Instrument Serif',serif;
+  font-size:1.4rem;font-weight:400;
+  color:rgba(212,200,168,.7);
+  margin-bottom:16px;
+}
+p{
+  font-size:.85rem;color:rgba(212,200,168,.4);
+  line-height:1.6;margin-bottom:24px;
+}
+.step{display:none;width:100%;flex-direction:column;align-items:center}
+.step.active{display:flex}
+
+/* Buttons */
+.btn{
+  background:none;
+  border:1px solid rgba(212,200,168,.25);
+  color:rgba(212,200,168,.7);
+  font-family:'DM Sans',sans-serif;
+  font-size:.8rem;letter-spacing:.08em;
+  padding:12px 32px;border-radius:100px;
+  cursor:pointer;transition:all .25s;
+  text-decoration:none;display:inline-block;
+}
+.btn:hover{
+  color:rgba(212,200,168,.95);
+  border-color:rgba(212,200,168,.5);
+  background:rgba(212,200,168,.06);
+}
+.btn.primary{
+  background:rgba(212,200,168,.1);
+  border-color:rgba(212,200,168,.3);
+  color:rgba(212,200,168,.9);
+}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn-row{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;justify-content:center}
+
+/* Inputs */
+input[type="text"]{
+  background:rgba(212,200,168,.04);
+  border:1px solid rgba(212,200,168,.15);
+  color:#e8e6e1;
+  font-family:'DM Sans',sans-serif;
+  font-size:.9rem;
+  padding:12px 20px;border-radius:8px;
+  width:100%;max-width:320px;
+  outline:none;transition:border-color .2s;
+  text-align:center;
+}
+input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
+.input-hint{font-size:.65rem;color:rgba(212,200,168,.3);margin-top:6px}
+.input-error{font-size:.65rem;color:#e8665a;margin-top:6px}
+
+/* Drop zone */
+.drop-zone{
+  width:100%;min-height:200px;
+  border:2px dashed rgba(212,200,168,.15);
+  border-radius:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 20px;
+  transition:border-color .2s, background .2s;
+  cursor:pointer;margin-bottom:16px;
+}
+.drop-zone.dragover{
+  border-color:rgba(212,200,168,.4);
+  background:rgba(212,200,168,.04);
+}
+.drop-zone p{margin-bottom:8px;color:rgba(212,200,168,.35)}
+.drop-zone .icon{font-size:2rem;margin-bottom:12px;opacity:.3}
+
+/* Thumbnails */
+.thumbs{
+  display:flex;flex-wrap:wrap;gap:10px;justify-content:center;
+  margin:16px 0;width:100%;
+}
+.thumb{
+  position:relative;width:80px;height:80px;border-radius:6px;overflow:hidden;
+  border:1px solid rgba(212,200,168,.1);
+}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .remove{
+  position:absolute;top:2px;right:2px;
+  background:rgba(0,0,0,.7);border:none;color:#e8e6e1;
+  width:20px;height:20px;border-radius:50%;
+  font-size:.7rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* Processing animation */
+.processing-stars{
+  display:flex;gap:6px;margin:24px 0;
+}
+.processing-stars span{
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(212,200,168,.4);
+  animation:pulse-star 1.4s ease-in-out infinite;
+}
+.processing-stars span:nth-child(2){animation-delay:.2s}
+.processing-stars span:nth-child(3){animation-delay:.4s}
+.processing-stars span:nth-child(4){animation-delay:.6s}
+.processing-stars span:nth-child(5){animation-delay:.8s}
+@keyframes pulse-star{
+  0%,100%{opacity:.2;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.8)}
+}
+
+/* Book list */
+.book-list{
+  width:100%;max-height:400px;overflow-y:auto;
+  margin:16px 0;text-align:left;
+}
+.book-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 12px;border-radius:8px;
+  border:1px solid rgba(212,200,168,.06);
+  margin-bottom:6px;
+  background:rgba(212,200,168,.02);
+  transition:background .15s;
+}
+.book-item:hover{background:rgba(212,200,168,.05)}
+.book-item img{width:36px;height:52px;object-fit:cover;border-radius:3px;flex-shrink:0}
+.book-item .book-ph{
+  width:36px;height:52px;border-radius:3px;flex-shrink:0;
+  background:rgba(212,200,168,.06);border:1px solid rgba(212,200,168,.08);
+}
+.book-item .info{flex:1;min-width:0}
+.book-item .info .title{font-size:.8rem;color:#e8e6e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.book-item .info .author{font-size:.65rem;color:rgba(212,200,168,.35)}
+.book-item .remove-book{
+  background:none;border:none;color:rgba(212,200,168,.2);
+  font-size:1.1rem;cursor:pointer;padding:4px;flex-shrink:0;
+}
+.book-item .remove-book:hover{color:#e8665a}
+
+/* Add book row */
+.add-book-row{
+  display:flex;gap:8px;width:100%;margin-top:12px;
+}
+.add-book-row input{
+  flex:1;text-align:left;font-size:.8rem;padding:10px 14px;
+}
+.add-book-row button{flex-shrink:0}
+
+/* Done */
+.sky-link{
+  background:rgba(212,200,168,.04);
+  border:1px solid rgba(212,200,168,.1);
+  border-radius:8px;
+  padding:14px 24px;
+  font-size:.85rem;color:rgba(212,200,168,.6);
+  word-break:break-all;
+  margin:16px 0;
+  user-select:all;
+}
+
+/* Spinner */
+.spinner-sm{
+  width:16px;height:16px;border-radius:50%;
+  border:2px solid rgba(212,200,168,.15);
+  border-top-color:rgba(212,200,168,.5);
+  animation:spin .8s linear infinite;
+  display:inline-block;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Step 1: Welcome -->
+  <div class="step active" id="step-welcome">
+    <h1>Create Your Night Sky</h1>
+    <p>Turn your bookshelf into a starfield. Snap a photo of your books, and we'll build you a shareable night sky.</p>
+    <button class="btn primary" id="btn-google">Sign in with Google</button>
+  </div>
+
+  <!-- Step 2: Username -->
+  <div class="step" id="step-username">
+    <h2>Pick your URL</h2>
+    <p>This will be your shareable night sky link.</p>
+    <div style="font-size:.7rem;color:rgba(212,200,168,.3);margin-bottom:8px">nightsky-rouge.vercel.app/sky/</div>
+    <input type="text" id="input-username" placeholder="your-name" maxlength="30" autocomplete="off">
+    <div class="input-hint" id="username-hint">Lowercase letters, numbers, and hyphens only</div>
+    <div style="margin-top:16px">
+      <label style="font-size:.75rem;color:rgba(212,200,168,.4)">Display name</label>
+      <input type="text" id="input-display" placeholder="Your Name" style="margin-top:6px">
+    </div>
+    <button class="btn primary" id="btn-username" style="margin-top:24px" disabled>Continue</button>
+  </div>
+
+  <!-- Step 3: Photo Upload -->
+  <div class="step" id="step-upload">
+    <h2>Add your books</h2>
+    <p>Take photos of your bookshelf or upload images. We'll identify the books for you.</p>
+    <div class="drop-zone" id="drop-zone">
+      <div class="icon">+</div>
+      <p>Drop photos here</p>
+      <p style="font-size:.65rem">or click to browse</p>
+    </div>
+    <input type="file" id="file-input" accept="image/*" multiple hidden>
+    <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="btn-row">
+      <button class="btn" id="btn-camera">Take Photo</button>
+      <button class="btn primary" id="btn-process" disabled>Identify Books</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Processing -->
+  <div class="step" id="step-processing">
+    <h2>Putting it together for you...</h2>
+    <div class="processing-stars">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <p id="processing-status">Identifying books in your photos...</p>
+  </div>
+
+  <!-- Step 5: Review -->
+  <div class="step" id="step-review">
+    <h2 id="review-title">Found your books!</h2>
+    <p>Review the list below. Remove any wrong entries or add missing books.</p>
+    <div class="book-list" id="book-list"></div>
+    <div class="add-book-row">
+      <input type="text" id="input-add-book" placeholder="Add a book title...">
+      <button class="btn" id="btn-add-book">Add</button>
+    </div>
+    <button class="btn primary" id="btn-save" style="margin-top:24px">Save & Create Sky</button>
+  </div>
+
+  <!-- Step 6: Done -->
+  <div class="step" id="step-done">
+    <h2>Your Night Sky is ready!</h2>
+    <p>Share it with anyone. They'll see your books as stars in the sky.</p>
+    <div class="sky-link" id="sky-link"></div>
+    <div class="btn-row">
+      <a class="btn primary" id="btn-view-sky" href="#">View My Sky</a>
+      <button class="btn" id="btn-add-more">Add More Books</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="../js/supabase-client.js"></script>
+<script src="../js/openlibrary.js"></script>
+<script>
+(async () => {
+  // --- State ---
+  let currentStep = 'welcome';
+  let user = null;
+  let userProfile = null;
+  let photoFiles = [];
+  let identifiedBooks = []; // [{title, author, cover_url?}]
+
+  const steps = ['welcome', 'username', 'upload', 'processing', 'review', 'done'];
+
+  function showStep(name) {
+    currentStep = name;
+    steps.forEach(s => {
+      const el = document.getElementById('step-' + s);
+      el.classList.toggle('active', s === name);
+    });
+  }
+
+  // --- Check if already signed in ---
+  try {
+    const session = await getSession();
+    if (session) {
+      user = session.user;
+      // Check if user already has a profile
+      const sb = getSupabase();
+      const { data: profile } = await sb
+        .from('users')
+        .select('username, display_name')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        userProfile = profile;
+        // Returning user — go to upload step
+        showStep('upload');
+      } else {
+        // New user — go to username step
+        document.getElementById('input-display').value = user.user_metadata?.full_name || '';
+        showStep('username');
+      }
+    }
+  } catch (e) {
+    // Not signed in, show welcome
+  }
+
+  // --- Step 1: Google Sign-in ---
+  document.getElementById('btn-google').addEventListener('click', () => {
+    signInWithGoogle();
+  });
+
+  // --- Step 2: Username ---
+  const usernameInput = document.getElementById('input-username');
+  const usernameHint = document.getElementById('username-hint');
+  const btnUsername = document.getElementById('btn-username');
+
+  usernameInput.addEventListener('input', () => {
+    let val = usernameInput.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    usernameInput.value = val;
+    btnUsername.disabled = val.length < 2;
+  });
+
+  btnUsername.addEventListener('click', async () => {
+    const username = usernameInput.value.trim();
+    const displayName = document.getElementById('input-display').value.trim() || username;
+
+    if (username.length < 2) return;
+
+    btnUsername.disabled = true;
+    btnUsername.textContent = 'Checking...';
+
+    try {
+      const sb = getSupabase();
+      // Check uniqueness
+      const { data: existing } = await sb
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .single();
+
+      if (existing) {
+        usernameHint.className = 'input-error';
+        usernameHint.textContent = 'Username already taken';
+        btnUsername.disabled = false;
+        btnUsername.textContent = 'Continue';
+        return;
+      }
+
+      // Create profile
+      const { error } = await sb.from('users').insert({
+        id: user.id,
+        username,
+        display_name: displayName
+      });
+
+      if (error) throw error;
+      userProfile = { username, display_name: displayName };
+      showStep('upload');
+    } catch (e) {
+      usernameHint.className = 'input-error';
+      usernameHint.textContent = 'Error: ' + (e.message || 'Try again');
+      btnUsername.disabled = false;
+      btnUsername.textContent = 'Continue';
+    }
+  });
+
+  // --- Step 3: Photo Upload ---
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const cameraInput = document.getElementById('camera-input');
+  const thumbsEl = document.getElementById('thumbs');
+  const btnProcess = document.getElementById('btn-process');
+
+  function resizeImage(file, maxDim = 1600) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          if (w <= maxDim && h <= maxDim) {
+            resolve(file);
+            return;
+          }
+          const scale = maxDim / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          }, 'image/jpeg', 0.85);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function addFiles(files) {
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) continue;
+      const resized = await resizeImage(f);
+      photoFiles.push(resized);
+    }
+    renderThumbs();
+    btnProcess.disabled = photoFiles.length === 0;
+  }
+
+  function renderThumbs() {
+    thumbsEl.innerHTML = '';
+    photoFiles.forEach((f, i) => {
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      const btn = document.createElement('button');
+      btn.className = 'remove';
+      btn.textContent = '\u00d7';
+      btn.onclick = () => { photoFiles.splice(i, 1); renderThumbs(); btnProcess.disabled = photoFiles.length === 0; };
+      div.appendChild(img);
+      div.appendChild(btn);
+      thumbsEl.appendChild(div);
+    });
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    addFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', () => addFiles(fileInput.files));
+  cameraInput.addEventListener('change', () => addFiles(cameraInput.files));
+  document.getElementById('btn-camera').addEventListener('click', () => cameraInput.click());
+
+  btnProcess.addEventListener('click', async () => {
+    if (photoFiles.length === 0) return;
+    showStep('processing');
+
+    try {
+      const sb = getSupabase();
+      const session = await getSession();
+
+      // Upload photos to Supabase Storage
+      const statusEl = document.getElementById('processing-status');
+      statusEl.textContent = 'Uploading photos...';
+
+      for (let i = 0; i < photoFiles.length; i++) {
+        const file = photoFiles[i];
+        const path = user.id + '/' + Date.now() + '-' + i + '.jpg';
+        const { error: uploadErr } = await sb.storage
+          .from('bookshelf-photos')
+          .upload(path, file);
+        if (uploadErr) throw uploadErr;
+
+        // Record in user_photos
+        await sb.from('user_photos').insert({
+          user_id: user.id,
+          storage_path: path,
+          processed: false
+        });
+      }
+
+      statusEl.textContent = 'Identifying books in your photos...';
+
+      // Call identify API
+      const res = await fetch('/api/identify-books', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + session.access_token,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Identification failed');
+      }
+
+      const data = await res.json();
+      identifiedBooks = data.books || [];
+
+      // Fetch covers client-side
+      statusEl.textContent = 'Finding book covers...';
+      const booksForCovers = identifiedBooks.map(b => ({ t: b.title, a: b.author }));
+      await fetchCovers(booksForCovers);
+      identifiedBooks.forEach((b, i) => {
+        if (booksForCovers[i].c) b.cover_url = booksForCovers[i].c;
+      });
+
+      document.getElementById('review-title').textContent = 'Found ' + identifiedBooks.length + ' books!';
+      renderBookList();
+      showStep('review');
+
+    } catch (e) {
+      console.error('Processing error:', e);
+      document.getElementById('processing-status').textContent = 'Error: ' + (e.message || 'Something went wrong. Please try again.');
+      setTimeout(() => showStep('upload'), 3000);
+    }
+  });
+
+  // --- Step 5: Review ---
+  function renderBookList() {
+    const list = document.getElementById('book-list');
+    list.innerHTML = '';
+    identifiedBooks.forEach((book, i) => {
+      const item = document.createElement('div');
+      item.className = 'book-item';
+      item.innerHTML =
+        (book.cover_url
+          ? '<img src="' + book.cover_url + '" alt="">'
+          : '<div class="book-ph"></div>') +
+        '<div class="info">' +
+          '<div class="title">' + book.title + '</div>' +
+          '<div class="author">' + (book.author || '') + '</div>' +
+        '</div>' +
+        '<button class="remove-book">\u00d7</button>';
+      item.querySelector('.remove-book').onclick = () => {
+        identifiedBooks.splice(i, 1);
+        renderBookList();
+      };
+      list.appendChild(item);
+    });
+  }
+
+  document.getElementById('btn-add-book').addEventListener('click', async () => {
+    const input = document.getElementById('input-add-book');
+    const title = input.value.trim();
+    if (!title) return;
+
+    const book = { title, author: '' };
+    // Try to find cover
+    const tmp = [{ t: title, a: '' }];
+    await fetchCovers(tmp);
+    if (tmp[0].c) book.cover_url = tmp[0].c;
+
+    identifiedBooks.push(book);
+    renderBookList();
+    input.value = '';
+  });
+
+  document.getElementById('btn-save').addEventListener('click', async () => {
+    if (identifiedBooks.length === 0) return;
+
+    const btnSave = document.getElementById('btn-save');
+    btnSave.disabled = true;
+    btnSave.textContent = 'Saving...';
+
+    try {
+      const sb = getSupabase();
+
+      // Insert books
+      const rows = identifiedBooks.map((b, i) => ({
+        user_id: user.id,
+        title: b.title,
+        author: b.author || '',
+        genre: '',
+        cover_url: b.cover_url || null,
+        sort_order: i
+      }));
+
+      const { error } = await sb.from('user_books').insert(rows);
+      if (error) throw error;
+
+      const username = userProfile.username;
+      const link = window.location.origin + '/sky/' + username;
+      document.getElementById('sky-link').textContent = link;
+      document.getElementById('btn-view-sky').href = '/sky/' + username;
+
+      showStep('done');
+    } catch (e) {
+      console.error('Save error:', e);
+      btnSave.disabled = false;
+      btnSave.textContent = 'Save & Create Sky';
+    }
+  });
+
+  // --- Step 6: Done ---
+  document.getElementById('btn-add-more').addEventListener('click', () => {
+    photoFiles = [];
+    identifiedBooks = [];
+    renderThumbs();
+    btnProcess.disabled = true;
+    showStep('upload');
+  });
+
+})();
+</script>
+</body>
+</html>

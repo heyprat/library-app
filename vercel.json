@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/sky/:username", "destination": "/sky.html" },
+    { "source": "/onboard", "destination": "/onboard/index.html" }
+  ]
+}

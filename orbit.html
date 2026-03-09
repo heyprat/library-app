@@ -80,13 +80,33 @@ body:active{cursor:grabbing}
   border-color:rgba(212,200,168,.4);
   background:rgba(212,200,168,.06);
 }
+.make-own{
+  display:inline-block;
+  margin-top:8px;margin-left:8px;
+  background:none;border:1px solid rgba(212,200,168,.2);
+  color:rgba(212,200,168,.5);
+  font-family:'DM Sans',sans-serif;
+  font-size:.55rem;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  padding:5px 16px;
+  border-radius:100px;
+  cursor:pointer;
+  transition:all .25s;
+  pointer-events:auto;
+  text-decoration:none;
+}
+.make-own:hover{
+  color:rgba(212,200,168,.8);
+  border-color:rgba(212,200,168,.4);
+  background:rgba(212,200,168,.06);
+}
 
 /* Book star — the core element */
 .star{
   position:absolute;
   cursor:pointer;
   z-index:1;
-  /* Bigger hover target: 30px pad around the dot */
   padding:30px;
   margin:-30px;
   transition:left .6s cubic-bezier(.25,.8,.25,1), top .6s cubic-bezier(.25,.8,.25,1);
@@ -106,19 +126,17 @@ body:active{cursor:grabbing}
   z-index:2;
 }
 
-/* Proximity glow — applied via JS based on cursor distance */
+/* Proximity glow */
 .star.near .dot{
   transform:scale(var(--prox-scale,1));
   filter:brightness(var(--prox-bright,1));
 }
 
-/* Default gentle pulse — all stars do this */
 @keyframes twinkle{
   0%,100%{opacity:.6;transform:scale(1)}
   50%{opacity:1;transform:scale(1.2)}
 }
 
-/* Noticeable sparkle — brief flash that morphs to book rectangle */
 .star.sparkle .dot{
   animation:sparkle var(--duration) ease-in-out infinite;
   animation-delay:var(--delay);
@@ -131,7 +149,6 @@ body:active{cursor:grabbing}
   58%{opacity:.5;transform:scale(1);border-radius:50%}
 }
 
-/* Auto-reveal animation class */
 .star.auto-reveal .dot{
   opacity:0;transform:scale(2);
 }
@@ -140,7 +157,6 @@ body:active{cursor:grabbing}
   transform:translate(-50%,-50%) scale(1);
 }
 
-/* Show-all mode — all stars reveal at once */
 .sky-revealed .star .dot{
   opacity:0 !important;
   transform:scale(0) !important;
@@ -155,7 +171,6 @@ body:active{cursor:grabbing}
   opacity:1 !important;
 }
 
-/* The reveal container — hidden by default */
 .star .reveal{
   position:absolute;
   top:50%;left:50%;
@@ -201,7 +216,6 @@ body:active{cursor:grabbing}
   font-size:.45rem;
 }
 
-/* Hover: dot fades, cover blooms */
 .star:hover{z-index:500}
 .star:hover .dot{
   opacity:0;
@@ -213,7 +227,6 @@ body:active{cursor:grabbing}
   pointer-events:auto;
 }
 
-/* Dimming nearby stars on hover — handled via JS class */
 .star.dimmed .dot{
   opacity:.15 !important;
   animation-play-state:paused;
@@ -296,18 +309,7 @@ body:active{cursor:grabbing}
 </head>
 <body>
 
-<div id="title">
-  <h1>Pratyush's Library</h1>
-  <div class="sub">hover to reveal · drag to explore</div>
-  <button id="show-all">Show All</button>
-</div>
-
-<div id="sky"></div>
-
-<div class="modal-bg" id="mbg">
-  <div class="modal" id="modal"></div>
-</div>
-
+<script src="js/sky-renderer.js"></script>
 <script>
 const B=[
   {t:"Addiction by Design",a:"Natasha Dow Schüll",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/12898178-M.jpg"},
@@ -426,279 +428,11 @@ const B=[
   {t:"Theory of Meaning",a:"Lehrer & Lehrer",g:"Philosophy"},
 ];
 
-const sky = document.getElementById('sky');
-
-// Seeded random
-let seed = 42;
-function rand() {
-  seed = (seed * 16807) % 2147483647;
-  return (seed - 1) / 2147483646;
-}
-
-// Layout
-const COLS = 14;
-const ROWS = Math.ceil(B.length / COLS);
-const CELL_W = 140;
-const CELL_H = 140;
-const SKY_W = COLS * CELL_W + 200;
-const SKY_H = ROWS * CELL_H + 200;
-
-sky.style.width = SKY_W + 'px';
-sky.style.height = SKY_H + 'px';
-
-// Background atmosphere stars (tiny, dim)
-for (let i = 0; i < 250; i++) {
-  const s = document.createElement('div');
-  s.className = 'bg-star';
-  s.style.left = (rand() * SKY_W) + 'px';
-  s.style.top = (rand() * SKY_H) + 'px';
-  const size = 1 + rand() * 1.5;
-  s.style.width = size + 'px';
-  s.style.height = size + 'px';
-  s.style.animationDuration = (4 + rand() * 8) + 's';
-  s.style.animationDelay = (rand() * 6) + 's';
-  sky.appendChild(s);
-}
-
-// Shuffle books
-const shuffled = [...B];
-for (let i = shuffled.length - 1; i > 0; i--) {
-  const j = Math.floor(rand() * (i + 1));
-  [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-}
-
-// Place book stars
-const starEls = [];
-shuffled.forEach((book, i) => {
-  const col = i % COLS;
-  const row = Math.floor(i / COLS);
-
-  const baseX = 100 + col * CELL_W + CELL_W / 2;
-  const baseY = 100 + row * CELL_H + CELL_H / 2;
-  const jitterX = (rand() - 0.5) * 80;
-  const jitterY = (rand() - 0.5) * 70;
-
-  const dotSize = 3 + rand() * 3; // 3-6px
-  const brightness = 0.5 + rand() * 0.5; // 0.5-1.0
-  const twinkleDuration = 3 + rand() * 5; // 3-8s
-  const twinkleDelay = rand() * 6;
-
-  const star = document.createElement('div');
-  // ~30% of stars get a noticeable sparkle
-  star.className = rand() < 0.3 ? 'star sparkle' : 'star';
-  star.style.left = (baseX + jitterX) + 'px';
-  star.style.top = (baseY + jitterY) + 'px';
-
-  const coverHTML = book.c
-    ? '<img src="' + book.c + '" alt="" loading="lazy">'
-    : '<div class="ph">' + book.t + '</div>';
-
-  star.innerHTML =
-    '<div class="dot" style="--size:' + dotSize.toFixed(1) + 'px;--brightness:' + brightness.toFixed(2) + ';--duration:' + twinkleDuration.toFixed(1) + 's;--delay:' + twinkleDelay.toFixed(1) + 's"></div>' +
-    '<div class="reveal">' +
-      coverHTML +
-      '<div class="label">' + book.t + (book.a ? '<br><span>' + book.a + '</span>' : '') + '</div>' +
-    '</div>';
-
-  star.addEventListener('click', () => openModal(book));
-
-  // Dim nearby stars on hover
-  star.addEventListener('mouseenter', () => {
-    const cx = parseFloat(star.style.left);
-    const cy = parseFloat(star.style.top);
-    starEls.forEach(other => {
-      if (other.el === star) return;
-      const dx = other.x - cx;
-      const dy = other.y - cy;
-      if (dx * dx + dy * dy < 40000) { // within ~200px
-        other.el.classList.add('dimmed');
-      }
-    });
-  });
-  star.addEventListener('mouseleave', () => {
-    starEls.forEach(other => other.el.classList.remove('dimmed'));
-  });
-
-  sky.appendChild(star);
-  starEls.push({ el: star, x: baseX + jitterX, y: baseY + jitterY });
-});
-
-// Proximity glow — stars brighten/grow as cursor approaches
-let proxFrame = 0;
-document.addEventListener('mousemove', e => {
-  if (proxFrame) return; // throttle to rAF
-  proxFrame = requestAnimationFrame(() => {
-    proxFrame = 0;
-    if (dragging) return;
-    // Convert cursor to sky coords
-    const skyRect = sky.getBoundingClientRect();
-    const mx = e.clientX - skyRect.left;
-    const my = e.clientY - skyRect.top;
-    const RADIUS = 120;
-    const R2 = RADIUS * RADIUS;
-    for (let i = 0; i < starEls.length; i++) {
-      const s = starEls[i];
-      const dx = s.x - mx;
-      const dy = s.y - my;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < R2) {
-        const t = 1 - Math.sqrt(d2) / RADIUS; // 0 at edge, 1 at center
-        s.el.classList.add('near');
-        s.el.style.setProperty('--prox-scale', (1 + t * 1.5).toFixed(2));
-        s.el.style.setProperty('--prox-bright', (1 + t * 0.8).toFixed(2));
-      } else if (s.el.classList.contains('near')) {
-        s.el.classList.remove('near');
-      }
-    }
-  });
-});
-
-// Auto-reveal: continuously bloom random stars
-let autoRevealTimer = null;
-function startAutoReveal() {
-  function revealRandom() {
-    if (allRevealed) return;
-    // Pick a random star that isn't currently revealed
-    const idx = Math.floor(Math.random() * starEls.length);
-    const s = starEls[idx];
-    if (!s.el.classList.contains('auto-reveal')) {
-      s.el.classList.add('auto-reveal');
-      const showDuration = 1500 + Math.random() * 1000; // 1.5-2.5s
-      setTimeout(() => s.el.classList.remove('auto-reveal'), showDuration);
-    }
-    // Schedule next reveal at random interval (1.5-4s)
-    const nextDelay = 1500 + Math.random() * 2500;
-    autoRevealTimer = setTimeout(revealRandom, nextDelay);
-  }
-  // Start after a short initial delay
-  autoRevealTimer = setTimeout(revealRandom, 800);
-}
-startAutoReveal();
-
-// Center sky
-let px = -(SKY_W / 2 - window.innerWidth / 2);
-let py = -(SKY_H / 2 - window.innerHeight / 2);
-
-function clamp() {
-  const minX = -(SKY_W - window.innerWidth);
-  const minY = -(SKY_H - window.innerHeight);
-  if (SKY_W <= window.innerWidth) px = -(SKY_W - window.innerWidth) / 2;
-  else px = Math.min(0, Math.max(minX, px));
-  if (SKY_H <= window.innerHeight) py = -(SKY_H - window.innerHeight) / 2;
-  else py = Math.min(0, Math.max(minY, py));
-}
-function render() { clamp(); sky.style.transform = 'translate(' + px + 'px,' + py + 'px)'; }
-render();
-
-// Drag to pan
-let dragging = false, sx, sy, didDrag = false;
-document.addEventListener('mousedown', e => {
-  if (e.target.closest('.modal-bg')) return;
-  if (e.target.closest('.star .reveal')) return;
-  dragging = true; didDrag = false;
-  sx = e.clientX - px; sy = e.clientY - py;
-});
-document.addEventListener('mousemove', e => {
-  if (!dragging) return;
-  didDrag = true;
-  px = e.clientX - sx; py = e.clientY - sy; render();
-});
-document.addEventListener('mouseup', () => { dragging = false; });
-
-document.addEventListener('touchstart', e => {
-  if (e.target.closest('.modal-bg')) return;
-  if (e.target.closest('.star .reveal')) return;
-  dragging = true; didDrag = false;
-  sx = e.touches[0].clientX - px; sy = e.touches[0].clientY - py;
-}, { passive: true });
-document.addEventListener('touchmove', e => {
-  if (!dragging) return;
-  didDrag = true;
-  px = e.touches[0].clientX - sx; py = e.touches[0].clientY - sy; render();
-}, { passive: true });
-document.addEventListener('touchend', () => { dragging = false; });
-
-document.addEventListener('wheel', e => {
-  if (document.querySelector('.modal-bg.open')) return;
-  px -= e.deltaX; py -= e.deltaY; render();
-}, { passive: true });
-
-// Modal
-function openModal(book) {
-  if (didDrag) return;
-  const m = document.getElementById('modal');
-  m.innerHTML =
-    '<button class="modal-x" onclick="closeModal()">&times;</button>' +
-    (book.c
-      ? '<img class="modal-img" src="' + book.c + '" alt="">'
-      : '<div class="modal-ph">' + book.t + '</div>') +
-    '<h2>' + book.t + '</h2>' +
-    (book.a ? '<div class="ma">' + book.a + '</div>' : '<div class="ma"></div>') +
-    '<div class="mg">' + book.g + '</div>';
-  document.getElementById('mbg').classList.add('open');
-}
-
-function closeModal() {
-  document.getElementById('mbg').classList.remove('open');
-}
-
-document.getElementById('mbg').addEventListener('click', e => {
-  if (e.target === document.getElementById('mbg')) closeModal();
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-});
-
-// Show All toggle — reposition into spaced grid
-const showBtn = document.getElementById('show-all');
-let allRevealed = false;
-const GRID_CELL_W = 120;
-const GRID_CELL_H = 160;
-const GRID_COLS = Math.ceil(Math.sqrt(starEls.length * (GRID_CELL_H / GRID_CELL_W)));
-const GRID_ROWS = Math.ceil(starEls.length / GRID_COLS);
-const GRID_W = GRID_COLS * GRID_CELL_W + 200;
-const GRID_H = GRID_ROWS * GRID_CELL_H + 200;
-
-showBtn.addEventListener('click', () => {
-  allRevealed = !allRevealed;
-  sky.classList.toggle('sky-revealed', allRevealed);
-  showBtn.textContent = allRevealed ? 'Hide All' : 'Show All';
-
-  if (allRevealed) {
-    // Expand sky to fit grid
-    const totalGridW = GRID_COLS * GRID_CELL_W;
-    const totalGridH = GRID_ROWS * GRID_CELL_H + 200;
-    const newW = Math.max(SKY_W, totalGridW + 200);
-    const newH = Math.max(SKY_H, totalGridH);
-    sky.style.width = newW + 'px';
-    sky.style.height = newH + 'px';
-    // Center the grid within the sky
-    const offsetX = (newW - totalGridW) / 2;
-    const offsetY = 100;
-    // Move each star to a clean grid position
-    starEls.forEach((s, i) => {
-      const col = i % GRID_COLS;
-      const row = Math.floor(i / GRID_COLS);
-      const gx = offsetX + col * GRID_CELL_W + GRID_CELL_W / 2;
-      const gy = offsetY + row * GRID_CELL_H + GRID_CELL_H / 2;
-      s.el.style.left = gx + 'px';
-      s.el.style.top = gy + 'px';
-    });
-  } else {
-    // Restore original positions
-    sky.style.width = SKY_W + 'px';
-    sky.style.height = SKY_H + 'px';
-    starEls.forEach(s => {
-      s.el.style.left = s.x + 'px';
-      s.el.style.top = s.y + 'px';
-    });
-  }
-  // Re-center view
-  const sw = parseInt(sky.style.width);
-  const sh = parseInt(sky.style.height);
-  px = -(sw / 2 - window.innerWidth / 2);
-  py = -(sh / 2 - window.innerHeight / 2);
-  render();
+renderSky(document.body, B, {
+  title: "Pratyush\u2019s Library",
+  subtitle: "hover to reveal \u00b7 drag to explore",
+  seed: 42,
+  showMakeYourOwn: true
 });
 </script>
 </body>
