@@ -80,8 +80,8 @@ export default async function handler(req, res) {
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      console.error('Gemini error:', errText);
-      return res.status(500).json({ error: 'AI identification failed' });
+      console.error('Gemini error:', geminiRes.status, errText);
+      return res.status(500).json({ error: 'AI identification failed', status: geminiRes.status, detail: errText });
     }
 
     const geminiData = await geminiRes.json();

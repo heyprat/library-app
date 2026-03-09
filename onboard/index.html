@@ -601,7 +601,7 @@ if (MOCK) {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Identification failed');
+        throw new Error(err.detail || err.error || 'Identification failed');
       }
 
       const data = await res.json();
