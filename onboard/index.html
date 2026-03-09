@@ -22,16 +22,21 @@ body{
   display:flex;align-items:center;justify-content:center;
   overflow:hidden;position:relative;
 }
-#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
-#stars .s{
-  position:absolute;border-radius:50%;background:#fff;
-  opacity:0;animation:twink linear infinite;
+/* Sky background layer */
+#sky-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#sky-bg #sky{pointer-events:none}
+#sky-bg .star{pointer-events:none;cursor:default}
+#sky-bg .star .reveal{display:none}
+#sky-bg #title{display:none}
+#sky-bg .make-own{display:none}
+#sky-bg .modal-bg{display:none}
+/* Dim the sky so the form pops */
+#sky-bg::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center, rgba(10,11,15,.5) 0%, rgba(10,11,15,.8) 100%);
+  z-index:1;
 }
-@keyframes twink{
-  0%,100%{opacity:.03}
-  50%{opacity:.45}
-}
-.container{position:relative;z-index:1}
+.container{position:relative;z-index:10}
 .container{
   max-width:480px;width:90%;padding:40px 0;
   display:flex;flex-direction:column;align-items:center;text-align:center;
@@ -206,27 +211,35 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
   display:inline-block;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* Night sky background stars */
+.bg-star{position:absolute;border-radius:50%;background:#fff;opacity:0;animation:bgtwinkle linear infinite}
+@keyframes bgtwinkle{0%,100%{opacity:.05}50%{opacity:.4}}
+#sky{position:absolute;will-change:transform}
+.star{position:absolute;cursor:default;z-index:1;padding:30px;margin:-30px}
+.star .dot{
+  width:var(--size);height:var(--size);border-radius:50%;
+  background:radial-gradient(circle, rgba(255,248,230,var(--brightness)) 0%, rgba(212,200,168,calc(var(--brightness)*0.4)) 40%, transparent 70%);
+  box-shadow:0 0 calc(var(--size)*2) rgba(212,200,168,calc(var(--brightness)*0.3)),0 0 calc(var(--size)*4) rgba(212,200,168,calc(var(--brightness)*0.1));
+  animation:twinkle var(--duration) ease-in-out infinite;animation-delay:var(--delay);
+  position:relative;z-index:2;
+}
+@keyframes twinkle{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.2)}}
+.star.sparkle .dot{animation:sparkle var(--duration) ease-in-out infinite;animation-delay:var(--delay)}
+@keyframes sparkle{
+  0%,100%{opacity:.4;transform:scale(1);border-radius:50%}
+  42%{opacity:.5;transform:scale(1);border-radius:50%}
+  48%{opacity:1;transform:scale(2.2,3) translateY(-1px);border-radius:2px;filter:brightness(1.5)}
+  52%{opacity:1;transform:scale(2.2,3) translateY(-1px);border-radius:2px;filter:brightness(1.5)}
+  58%{opacity:.5;transform:scale(1);border-radius:50%}
+}
+.star.auto-reveal .dot{opacity:0;transform:scale(2)}
+.star.auto-reveal .reveal{opacity:1;transform:translate(-50%,-50%) scale(1)}
 </style>
 </head>
 <body>
 
-<div id="stars"></div>
-<script>
-(function(){
-  const c=document.getElementById('stars');
-  for(let i=0;i<150;i++){
-    const s=document.createElement('div');
-    s.className='s';
-    s.style.left=Math.random()*100+'%';
-    s.style.top=Math.random()*100+'%';
-    const sz=1+Math.random()*1.8;
-    s.style.width=sz+'px';s.style.height=sz+'px';
-    s.style.animationDuration=(3+Math.random()*8)+'s';
-    s.style.animationDelay=(Math.random()*6)+'s';
-    c.appendChild(s);
-  }
-})();
-</script>
+<div id="sky-bg"></div>
 
 <div class="container">
 
@@ -746,6 +759,46 @@ if (MOCK) {
   });
 
 })();
+</script>
+
+<script src="../js/sky-renderer.js"></script>
+<script>
+// Render Pratyush's sky as background ambiance
+const BG_BOOKS=[
+  {t:"Sapiens",a:"Yuval Noah Harari",g:"History",c:"https://covers.openlibrary.org/b/id/8634250-M.jpg"},
+  {t:"Exhalation",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8793546-M.jpg"},
+  {t:"Antifragile",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9180157-M.jpg"},
+  {t:"Atomic Habits",a:"James Clear",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/12539702-M.jpg"},
+  {t:"Range",a:"David Epstein",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8782615-M.jpg"},
+  {t:"The Alchemist",a:"Paulo Coelho",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7414780-M.jpg"},
+  {t:"Thinking, Fast and Slow",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/15174454-M.jpg"},
+  {t:"The Black Swan",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/5721840-M.jpg"},
+  {t:"Behave",a:"Robert Sapolsky",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8814831-M.jpg"},
+  {t:"Outliers",a:"Malcolm Gladwell",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10021591-M.jpg"},
+  {t:"Man's Search for Meaning",a:"Viktor Frankl",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/8516506-M.jpg"},
+  {t:"Factfulness",a:"Hans Rosling",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8186237-M.jpg"},
+  {t:"Pride and Prejudice",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/523015-M.jpg"},
+  {t:"Guns, Germs, and Steel",a:"Jared Diamond",g:"History",c:"https://covers.openlibrary.org/b/id/7884018-M.jpg"},
+  {t:"Noise",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10981966-M.jpg"},
+  {t:"Loonshots",a:"Safi Bahcall",g:"Business",c:"https://covers.openlibrary.org/b/id/8518798-M.jpg"},
+  {t:"The Lean Startup",a:"Eric Ries",g:"Business",c:"https://covers.openlibrary.org/b/id/7104760-M.jpg"},
+  {t:"Wanderlust",a:"Rebecca Solnit",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/100666-M.jpg"},
+  {t:"Mountains of the Mind",a:"Robert Macfarlane",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/8229224-M.jpg"},
+  {t:"The Order of Time",a:"Carlo Rovelli",g:"Science & Ideas"},
+  {t:"Notes from Underground",a:"Fyodor Dostoyevsky",g:"Fiction",c:"https://covers.openlibrary.org/b/id/10445973-M.jpg"},
+  {t:"Things Fall Apart",a:"Chinua Achebe",g:"Fiction",c:"https://covers.openlibrary.org/b/id/5042837-M.jpg"},
+  {t:"Switch",a:"Chip & Dan Heath",g:"Business",c:"https://covers.openlibrary.org/b/id/7348937-M.jpg"},
+  {t:"The Rational Optimist",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/7024445-M.jpg"},
+  {t:"Cooked",a:"Michael Pollan",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/2960867-M.jpg"},
+  {t:"Small Rain",a:"Garth Greenwell",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14744666-M.jpg"},
+  {t:"How We Got to Now",a:"Steven Johnson",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9692318-M.jpg"},
+  {t:"Genome",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/1315392-M.jpg"},
+  {t:"The War of Art",a:"Steven Pressfield",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/288439-M.jpg"},
+  {t:"Stories of Your Life and Others",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/524046-M.jpg"},
+];
+renderSky(document.getElementById('sky-bg'), BG_BOOKS, {
+  title: '', subtitle: '', seed: 77, showMakeYourOwn: false
+});
 </script>
 </body>
 </html>
