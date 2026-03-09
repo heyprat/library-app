@@ -177,8 +177,18 @@ function renderSky(container, books, opts = {}) {
   function startAutoReveal() {
     function revealRandom() {
       if (allRevealed) return;
-      const idx = Math.floor(Math.random() * starEls.length);
-      const s = starEls[idx];
+      // Prefer stars visible in the current viewport
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const margin = 60;
+      const visible = starEls.filter(s => {
+        const sx = s.x + px;
+        const sy = s.y + py;
+        return sx > -margin && sx < vw + margin && sy > -margin && sy < vh + margin;
+      });
+      const pool = visible.length > 0 ? visible : starEls;
+      const idx = Math.floor(Math.random() * pool.length);
+      const s = pool[idx];
       if (!s.el.classList.contains('auto-reveal')) {
         s.el.classList.add('auto-reveal');
         const showDuration = 1500 + Math.random() * 1000;

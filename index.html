@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Pratyush's Library — Night Sky</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
 <style>
@@ -108,7 +108,8 @@ body:active{cursor:grabbing}
 @media(max-width:600px){
   .make-own{
     right:auto;left:50%;transform:translateX(-50%);
-    bottom:24px;
+    bottom:env(safe-area-inset-bottom, 24px);
+    margin-bottom:24px;
   }
 }
 
@@ -438,11 +439,12 @@ const B=[
   {t:"Theory of Meaning",a:"Lehrer & Lehrer",g:"Philosophy"},
 ];
 
+const _bg = new URLSearchParams(window.location.search).has('bg');
 renderSky(document.body, B, {
-  title: "Pratyush\u2019s Library",
-  subtitle: "hover to reveal \u00b7 drag to explore",
+  title: _bg ? '' : "Pratyush\u2019s Library",
+  subtitle: _bg ? '' : "hover to reveal \u00b7 drag to explore",
   seed: 42,
-  showMakeYourOwn: true
+  showMakeYourOwn: !_bg
 });
 </script>
 </body>
