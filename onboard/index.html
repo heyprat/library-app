@@ -25,17 +25,25 @@ body{
 /* Sky background layer */
 #sky-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 #sky-bg #sky{pointer-events:none}
-#sky-bg .star{pointer-events:none;cursor:default}
-#sky-bg .star:hover .dot{opacity:unset;transform:unset}
-#sky-bg .star:hover .reveal{opacity:0;transform:translate(-50%,-50%) scale(0.2)}
-#sky-bg #title{display:none}
-#sky-bg .make-own{display:none}
-#sky-bg .modal-bg{display:none}
-#sky-bg #show-all{display:none}
+#sky-bg .star{pointer-events:none!important;cursor:default!important}
+#sky-bg .star .reveal{
+  width:60px!important;
+}
+#sky-bg .star .reveal img{width:50px!important;height:72px!important}
+#sky-bg .star .reveal .ph{width:50px!important;height:72px!important}
+#sky-bg .star .reveal .label{display:none!important}
+#sky-bg .star:hover .dot{opacity:unset!important;transform:unset!important}
+#sky-bg .star:hover .reveal{opacity:0!important;transform:translate(-50%,-50%) scale(0.2)!important}
+#sky-bg #title{display:none!important}
+#sky-bg .make-own{display:none!important}
+#sky-bg .modal-bg{display:none!important}
+/* Prevent show-all from triggering */
+#sky-bg .sky-revealed .star .dot{opacity:unset!important;transform:unset!important;animation:twinkle var(--duration) ease-in-out infinite!important}
+#sky-bg .sky-revealed .star .reveal{opacity:0!important;transform:translate(-50%,-50%) scale(0.2)!important;pointer-events:none!important}
 /* Dim the sky so the form pops */
 #sky-bg::after{
   content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse at center, rgba(10,11,15,.5) 0%, rgba(10,11,15,.8) 100%);
+  background:radial-gradient(ellipse at center, rgba(10,11,15,.4) 0%, rgba(10,11,15,.75) 100%);
   z-index:1;
 }
 .container{position:relative;z-index:10}
