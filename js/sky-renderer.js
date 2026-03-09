@@ -29,13 +29,16 @@ function renderSky(container, books, opts = {}) {
   container.appendChild(sky);
 
   // Title bar
-  const titleEl = document.createElement('div');
-  titleEl.id = 'title';
-  titleEl.innerHTML =
-    '<h1>' + title + '</h1>' +
-    '<div class="sub">' + subtitle + '</div>' +
-    '<button id="show-all">Show All</button>';
-  container.appendChild(titleEl);
+  let titleEl = null;
+  if (title) {
+    titleEl = document.createElement('div');
+    titleEl.id = 'title';
+    titleEl.innerHTML =
+      '<h1>' + title + '</h1>' +
+      '<div class="sub">' + subtitle + '</div>' +
+      '<button id="show-all">Show All</button>';
+    container.appendChild(titleEl);
+  }
 
   if (showMakeYourOwn) {
     const makeBtn = document.createElement('a');
@@ -262,6 +265,7 @@ function renderSky(container, books, opts = {}) {
 
   // Show All toggle
   const showBtn = document.getElementById('show-all');
+  if (!showBtn) return;
   const GRID_CELL_W = 120;
   const GRID_CELL_H = 160;
   const GRID_COLS = Math.ceil(Math.sqrt(starEls.length * (GRID_CELL_H / GRID_CELL_W)));

@@ -438,11 +438,12 @@ const B=[
   {t:"Theory of Meaning",a:"Lehrer & Lehrer",g:"Philosophy"},
 ];
 
+const _bg = new URLSearchParams(window.location.search).has('bg');
 renderSky(document.body, B, {
-  title: "Pratyush\u2019s Library",
-  subtitle: "hover to reveal \u00b7 drag to explore",
+  title: _bg ? '' : "Pratyush\u2019s Library",
+  subtitle: _bg ? '' : "hover to reveal \u00b7 drag to explore",
   seed: 42,
-  showMakeYourOwn: true
+  showMakeYourOwn: !_bg
 });
 </script>
 </body>
