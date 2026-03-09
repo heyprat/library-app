@@ -39,10 +39,13 @@ body:active{cursor:grabbing}
 /* Title overlay */
 #title{
   position:fixed;
-  top:32px;left:50%;
+  top:0;left:50%;
   transform:translateX(-50%);
-  z-index:50;
+  z-index:500;
   text-align:center;
+  padding:24px 40px 16px;
+  background:linear-gradient(to bottom, #0a0b0f 0%, #0a0b0f 60%, transparent 100%);
+  border-radius:0 0 20px 20px;
 }
 #title h1{
   font-family:'Instrument Serif',serif;
@@ -86,6 +89,7 @@ body:active{cursor:grabbing}
   /* Bigger hover target: 30px pad around the dot */
   padding:30px;
   margin:-30px;
+  transition:left .6s cubic-bezier(.25,.8,.25,1), top .6s cubic-bezier(.25,.8,.25,1);
 }
 
 /* The glowing dot */
@@ -549,30 +553,27 @@ document.addEventListener('mousemove', e => {
   });
 });
 
-// Auto-reveal: bloom 2-3 random visible stars sequentially on load
-(function autoReveal() {
-  // Find stars that are visible in the initial viewport
-  const vcx = SKY_W / 2, vcy = SKY_H / 2;
-  const vw = window.innerWidth / 2, vh = window.innerHeight / 2;
-  const visible = starEls.filter(s =>
-    Math.abs(s.x - vcx) < vw + 40 && Math.abs(s.y - vcy) < vh + 40
-  );
-  // Pick 3 random ones (true random, not seeded — different every load)
-  const picks = [];
-  const pool = [...visible];
-  const count = Math.min(3, pool.length);
-  for (let i = 0; i < count; i++) {
-    const idx = Math.floor(Math.random() * pool.length);
-    picks.push(pool.splice(idx, 1)[0]);
-  }
-  // Stagger them: 800ms, 1800ms, 2800ms — each shows for 1.5s
-  picks.forEach((s, i) => {
-    setTimeout(() => {
+// Auto-reveal: continuously bloom random stars
+let autoRevealTimer = null;
+function startAutoReveal() {
+  function revealRandom() {
+    if (allRevealed) return;
+    // Pick a random star that isn't currently revealed
+    const idx = Math.floor(Math.random() * starEls.length);
+    const s = starEls[idx];
+    if (!s.el.classList.contains('auto-reveal')) {
       s.el.classList.add('auto-reveal');
-      setTimeout(() => s.el.classList.remove('auto-reveal'), 1500);
-    }, 800 + i * 1200);
-  });
-})();
+      const showDuration = 1500 + Math.random() * 1000; // 1.5-2.5s
+      setTimeout(() => s.el.classList.remove('auto-reveal'), showDuration);
+    }
+    // Schedule next reveal at random interval (1.5-4s)
+    const nextDelay = 1500 + Math.random() * 2500;
+    autoRevealTimer = setTimeout(revealRandom, nextDelay);
+  }
+  // Start after a short initial delay
+  autoRevealTimer = setTimeout(revealRandom, 800);
+}
+startAutoReveal();
 
 // Center sky
 let px = -(SKY_W / 2 - window.innerWidth / 2);
@@ -648,13 +649,56 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
-// Show All toggle
+// Show All toggle — reposition into spaced grid
 const showBtn = document.getElementById('show-all');
 let allRevealed = false;
+const GRID_CELL_W = 120;
+const GRID_CELL_H = 160;
+const GRID_COLS = Math.ceil(Math.sqrt(starEls.length * (GRID_CELL_H / GRID_CELL_W)));
+const GRID_ROWS = Math.ceil(starEls.length / GRID_COLS);
+const GRID_W = GRID_COLS * GRID_CELL_W + 200;
+const GRID_H = GRID_ROWS * GRID_CELL_H + 200;
+
 showBtn.addEventListener('click', () => {
   allRevealed = !allRevealed;
   sky.classList.toggle('sky-revealed', allRevealed);
   showBtn.textContent = allRevealed ? 'Hide All' : 'Show All';
+
+  if (allRevealed) {
+    // Expand sky to fit grid
+    const totalGridW = GRID_COLS * GRID_CELL_W;
+    const totalGridH = GRID_ROWS * GRID_CELL_H + 200;
+    const newW = Math.max(SKY_W, totalGridW + 200);
+    const newH = Math.max(SKY_H, totalGridH);
+    sky.style.width = newW + 'px';
+    sky.style.height = newH + 'px';
+    // Center the grid within the sky
+    const offsetX = (newW - totalGridW) / 2;
+    const offsetY = 100;
+    // Move each star to a clean grid position
+    starEls.forEach((s, i) => {
+      const col = i % GRID_COLS;
+      const row = Math.floor(i / GRID_COLS);
+      const gx = offsetX + col * GRID_CELL_W + GRID_CELL_W / 2;
+      const gy = offsetY + row * GRID_CELL_H + GRID_CELL_H / 2;
+      s.el.style.left = gx + 'px';
+      s.el.style.top = gy + 'px';
+    });
+  } else {
+    // Restore original positions
+    sky.style.width = SKY_W + 'px';
+    sky.style.height = SKY_H + 'px';
+    starEls.forEach(s => {
+      s.el.style.left = s.x + 'px';
+      s.el.style.top = s.y + 'px';
+    });
+  }
+  // Re-center view
+  const sw = parseInt(sky.style.width);
+  const sh = parseInt(sky.style.height);
+  px = -(sw / 2 - window.innerWidth / 2);
+  py = -(sh / 2 - window.innerHeight / 2);
+  render();
 });
 </script>
 </body>
