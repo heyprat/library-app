@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pratyush's Library</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:#f8f6f1;
+  color:#1a1a18;
+  font-family:'DM Sans',sans-serif;
+  min-height:100vh;
+  padding:0 0 80px;
+}
+header{
+  position:sticky;top:0;z-index:900;
+  background:#f8f6f1ee;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid #1a1a1810;
+  padding:28px 48px 24px;
+  display:flex;align-items:baseline;justify-content:space-between;
+}
+header h1{
+  font-family:'Instrument Serif',serif;
+  font-weight:400;font-size:2rem;letter-spacing:-.02em;
+}
+header .count{
+  font-size:.85rem;font-weight:300;opacity:.5;letter-spacing:.04em;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:20px 28px;
+  padding:36px 48px;
+}
+.genre-pile{
+  position:relative;
+  padding:8px 0 0;
+}
+.genre-label{
+  font-family:'Instrument Serif',serif;
+  font-size:1.05rem;font-weight:400;
+  margin-bottom:8px;
+  letter-spacing:-.01em;
+  opacity:.6;
+}
+.genre-label span{
+  font-family:'DM Sans',sans-serif;
+  font-size:.7rem;font-weight:300;opacity:.6;
+  margin-left:6px;
+}
+.pile-area{
+  position:relative;
+}
+.book-card{
+  position:absolute;
+  width:88px;height:130px;
+  border-radius:3px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:transform .28s cubic-bezier(.22,1,.36,1),box-shadow .28s cubic-bezier(.22,1,.36,1),z-index 0s;
+  box-shadow:0 1px 4px #1a1a1812,0 1px 2px #1a1a180a;
+  background:#e8e5de;
+}
+.book-card img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  pointer-events:none;
+}
+.book-card .placeholder{
+  width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  padding:10px;
+  font-family:'Instrument Serif',serif;
+  font-size:.72rem;line-height:1.25;
+  text-align:center;
+  background:#dedbd4;
+  color:#1a1a18cc;
+}
+.book-card:hover{
+  transform:scale(1.1) rotate(0deg) !important;
+  z-index:800 !important;
+  box-shadow:0 12px 32px #1a1a1820,0 4px 8px #1a1a1814;
+}
+
+/* Detail overlay */
+.detail-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:#f8f6f1;
+  opacity:0;pointer-events:none;
+  transition:opacity .3s ease;
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+}
+.detail-overlay.open{
+  opacity:1;pointer-events:auto;
+}
+.detail-top{
+  position:sticky;top:0;z-index:10;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 32px;
+  background:#f8f6f1ee;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid #1a1a180a;
+}
+.detail-genre{
+  font-family:'Instrument Serif',serif;
+  font-size:1.1rem;font-weight:400;opacity:.6;
+}
+.detail-close{
+  background:none;border:none;cursor:pointer;
+  font-size:1.5rem;color:#1a1a18;opacity:.35;
+  transition:opacity .2s;font-family:'DM Sans',sans-serif;line-height:1;
+  padding:4px 8px;
+}
+.detail-close:hover{opacity:1}
+
+.detail-main{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  padding:40px 32px 32px;
+}
+.detail-cover{
+  width:220px;max-width:50vw;aspect-ratio:2/3;
+  border-radius:6px;overflow:hidden;
+  background:#dedbd4;
+  box-shadow:0 16px 48px #1a1a181a,0 4px 12px #1a1a1814;
+  margin-bottom:28px;
+}
+.detail-cover img{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+.detail-cover .placeholder{
+  width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+  font-family:'Instrument Serif',serif;
+  font-size:1.2rem;line-height:1.3;
+  text-align:center;
+  color:#1a1a18cc;
+}
+.detail-title{
+  font-family:'Instrument Serif',serif;
+  font-weight:400;font-size:1.8rem;
+  text-align:center;letter-spacing:-.02em;
+  margin-bottom:6px;line-height:1.2;
+}
+.detail-author{
+  text-align:center;font-size:.95rem;opacity:.5;font-weight:300;
+  margin-bottom:6px;
+}
+.detail-gtag{
+  text-align:center;font-size:.7rem;
+  text-transform:uppercase;letter-spacing:.08em;
+  color:#c45d3e;font-weight:500;
+  margin-bottom:4px;
+}
+
+/* Carousel */
+.carousel-section{
+  width:100%;max-width:700px;
+  margin:44px auto 0;
+  padding:0 0 20px;
+}
+.carousel-heading{
+  font-family:'Instrument Serif',serif;
+  font-size:1rem;font-weight:400;
+  opacity:.45;margin-bottom:14px;
+  text-align:center;
+}
+.carousel-track{
+  display:flex;gap:12px;
+  overflow-x:auto;
+  padding:8px 4px 16px;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.carousel-track::-webkit-scrollbar{display:none}
+.carousel-item{
+  flex:0 0 auto;
+  width:80px;
+  cursor:pointer;
+  scroll-snap-align:center;
+  transition:transform .2s,opacity .2s;
+  opacity:.55;
+}
+.carousel-item:hover{opacity:.85;transform:scale(1.06)}
+.carousel-item.active{opacity:1;transform:scale(1.08)}
+.carousel-item .ci-cover{
+  width:80px;height:118px;
+  border-radius:3px;overflow:hidden;
+  background:#dedbd4;
+  box-shadow:0 2px 8px #1a1a1812;
+}
+.carousel-item .ci-cover img{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+.carousel-item .ci-cover .placeholder{
+  width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  padding:6px;
+  font-family:'Instrument Serif',serif;
+  font-size:.6rem;line-height:1.2;
+  text-align:center;color:#1a1a18aa;
+}
+.carousel-item .ci-title{
+  font-size:.65rem;font-weight:400;
+  margin-top:6px;text-align:center;
+  line-height:1.25;
+  overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+}
+.carousel-item.active .ci-cover{
+  box-shadow:0 0 0 2px #1a1a18,0 4px 12px #1a1a1818;
+}
+
+@media(max-width:600px){
+  header{padding:20px 20px 18px}
+  header h1{font-size:1.4rem}
+  .grid{padding:20px;grid-template-columns:1fr 1fr;gap:16px}
+  .book-card{width:72px;height:106px}
+  .detail-main{padding:28px 20px 24px}
+  .detail-cover{width:180px}
+  .detail-title{font-size:1.4rem}
+  .carousel-section{padding:0 0 16px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pratyush's Library</h1>
+  <span class="count" id="book-count"></span>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<div class="detail-overlay" id="detail">
+  <div class="detail-top">
+    <div class="detail-genre" id="detail-genre"></div>
+    <button class="detail-close" id="detail-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="detail-main">
+    <div class="detail-cover" id="detail-cover"></div>
+    <div class="detail-title" id="detail-title"></div>
+    <div class="detail-author" id="detail-author"></div>
+    <div class="detail-gtag" id="detail-gtag"></div>
+    <div class="carousel-section">
+      <div class="carousel-heading" id="carousel-heading"></div>
+      <div class="carousel-track" id="carousel-track"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const B=[
+  {t:"Addiction by Design",a:"Natasha Dow Schüll",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/12898178-M.jpg"},
+  {t:"Extreme Economies",a:"Richard Davies",g:"Economics",c:"https://covers.openlibrary.org/b/id/12707846-M.jpg"},
+  {t:"Small Rain",a:"Garth Greenwell",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14744666-M.jpg"},
+  {t:"The Maniac",a:"Benjamín Labatut",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14036185-M.jpg"},
+  {t:"Noise",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10981966-M.jpg"},
+  {t:"Range",a:"David Epstein",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8782615-M.jpg"},
+  {t:"How We Got to Now",a:"Steven Johnson",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9692318-M.jpg"},
+  {t:"The Money Trap",a:"Alok Sama",g:"Business",c:"https://covers.openlibrary.org/b/id/14802826-M.jpg"},
+  {t:"Exhalation",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8793546-M.jpg"},
+  {t:"Small Data",a:"Martin Lindstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/8881323-M.jpg"},
+  {t:"This Is Marketing",a:"Seth Godin",g:"Business",c:"https://covers.openlibrary.org/b/id/14624926-M.jpg"},
+  {t:"How I Built This",a:"Guy Raz",g:"Business",c:"https://covers.openlibrary.org/b/id/10454172-M.jpg"},
+  {t:"Atomic Habits",a:"James Clear",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/12539702-M.jpg"},
+  {t:"Loonshots",a:"Safi Bahcall",g:"Business",c:"https://covers.openlibrary.org/b/id/8518798-M.jpg"},
+  {t:"No Rules Rules",a:"Reed Hastings",g:"Business",c:"https://covers.openlibrary.org/b/id/10524294-M.jpg"},
+  {t:"Guns, Germs, and Steel",a:"Jared Diamond",g:"History",c:"https://covers.openlibrary.org/b/id/7884018-M.jpg"},
+  {t:"Antifragile",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9180157-M.jpg"},
+  {t:"Thinking, Fast and Slow",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/15174454-M.jpg"},
+  {t:"Our Iceberg Is Melting",a:"John Kotter",g:"Business",c:"https://covers.openlibrary.org/b/id/7343706-M.jpg"},
+  {t:"Outliers",a:"Malcolm Gladwell",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10021591-M.jpg"},
+  {t:"Sapiens",a:"Yuval Noah Harari",g:"History",c:"https://covers.openlibrary.org/b/id/8634250-M.jpg"},
+  {t:"Genome",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/1315392-M.jpg"},
+  {t:"The Alchemist",a:"Paulo Coelho",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7414780-M.jpg"},
+  {t:"Change by Design",a:"Tim Brown",g:"Business",c:"https://covers.openlibrary.org/b/id/6305705-M.jpg"},
+  {t:"The Lean Startup",a:"Eric Ries",g:"Business",c:"https://covers.openlibrary.org/b/id/7104760-M.jpg"},
+  {t:"How Innovation Works",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10101301-M.jpg"},
+  {t:"A Strangeness in My Mind",a:"Orhan Pamuk",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8113416-M.jpg"},
+  {t:"An Artist of the Floating World",a:"Kazuo Ishiguro",g:"Fiction",c:"https://covers.openlibrary.org/b/id/4342830-M.jpg"},
+  {t:"Wanderlust",a:"Rebecca Solnit",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/100666-M.jpg"},
+  {t:"A Little History of Economics",a:"Niall Kishtainy",g:"Economics",c:"https://covers.openlibrary.org/b/id/10455766-M.jpg"},
+  {t:"Football in Sun and Shadow",a:"Eduardo Galeano",g:"Sports & Culture",c:"https://covers.openlibrary.org/b/id/11532-M.jpg"},
+  {t:"Switch",a:"Chip & Dan Heath",g:"Business",c:"https://covers.openlibrary.org/b/id/7348937-M.jpg"},
+  {t:"Upside Down",a:"Eduardo Galeano",g:"History",c:"https://covers.openlibrary.org/b/id/580532-M.jpg"},
+  {t:"Mountains of the Mind",a:"Robert Macfarlane",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/8229224-M.jpg"},
+  {t:"Notes from Underground",a:"Fyodor Dostoyevsky",g:"Fiction",c:"https://covers.openlibrary.org/b/id/10445973-M.jpg"},
+  {t:"Underland",a:"Robert Macfarlane",g:"Nature & Travel"},
+  {t:"Indian Summer",a:"Alex von Tunzelmann",g:"History"},
+  {t:"My Friends",a:"Hisham Matar",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14562202-M.jpg"},
+  {t:"Martyr!",a:"Kaveh Akbar",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14562207-M.jpg"},
+  {t:"Shattered Lands",a:"Sam Dalrymple",g:"History"},
+  {t:"Cooked",a:"Michael Pollan",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/2960867-M.jpg"},
+  {t:"Factfulness",a:"Hans Rosling",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8186237-M.jpg"},
+  {t:"Stories of Your Life and Others",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/524046-M.jpg"},
+  {t:"The War of Art",a:"Steven Pressfield",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/288439-M.jpg"},
+  {t:"Behave",a:"Robert Sapolsky",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8814831-M.jpg"},
+  {t:"My Family and Other Animals",a:"Gerald Durrell",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/5547600-M.jpg"},
+  {t:"The Hard Thing About Hard Things",a:"Ben Horowitz",g:"Business",c:"https://covers.openlibrary.org/b/id/7279515-M.jpg"},
+  {t:"21 Lessons for the 21st Century",a:"Yuval Noah Harari",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/13247357-M.jpg"},
+  {t:"The Art of Racing in the Rain",a:"Garth Stein",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6597298-M.jpg"},
+  {t:"Looking for Alaska",a:"John Green",g:"Fiction",c:"https://covers.openlibrary.org/b/id/12614602-M.jpg"},
+  {t:"How to Win Friends and Influence People",a:"Dale Carnegie",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/13314878-M.jpg"},
+  {t:"Sense and Sensibility",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/9278292-M.jpg"},
+  {t:"Pride and Prejudice",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/523015-M.jpg"},
+  {t:"The Wealth of Nations",a:"Adam Smith",g:"Economics",c:"https://covers.openlibrary.org/b/id/12816911-M.jpg"},
+  {t:"Man's Search for Meaning",a:"Viktor Frankl",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/8516506-M.jpg"},
+  {t:"The Class",a:"Erich Segal",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14955402-M.jpg"},
+  {t:"Father Brown Stories",a:"G.K. Chesterton",g:"Fiction",c:"https://covers.openlibrary.org/b/id/94081-M.jpg"},
+  {t:"Light in August",a:"William Faulkner",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8496792-M.jpg"},
+  {t:"Jonathan Livingston Seagull",a:"Richard Bach",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6522230-M.jpg"},
+  {t:"India's Struggle for Independence",a:"Bipan Chandra",g:"History",c:"https://covers.openlibrary.org/b/id/9800209-M.jpg"},
+  {t:"Made to Stick",a:"Chip & Dan Heath",g:"Business",c:"https://covers.openlibrary.org/b/id/7004880-M.jpg"},
+  {t:"Things Fall Apart",a:"Chinua Achebe",g:"Fiction",c:"https://covers.openlibrary.org/b/id/5042837-M.jpg"},
+  {t:"The Autumn of the Patriarch",a:"García Márquez",g:"Fiction",c:"https://covers.openlibrary.org/b/id/10097268-M.jpg"},
+  {t:"The Black Swan",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/5721840-M.jpg"},
+  {t:"The Rational Optimist",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/7024445-M.jpg"},
+  {t:"We Measure the Earth with Our Bodies",a:"Tsering Yangzom Lama",g:"Fiction",c:"https://covers.openlibrary.org/b/id/13315121-M.jpg"},
+  {t:"The Melancholy of Resistance",a:"László Krasznahorkai",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7666646-M.jpg"},
+  {t:"What I Talk About When I Talk About Running",a:"Haruki Murakami",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/13185830-M.jpg"},
+  {t:"The Argumentative Indian",a:"Amartya Sen",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/452472-M.jpg"},
+  {t:"Warren Buffett's Ground Rules",a:"Jeremy Miller",g:"Business",c:"https://covers.openlibrary.org/b/id/11195157-M.jpg"},
+  {t:"The Order of Time",a:"Carlo Rovelli",g:"Science & Ideas"},
+  {t:"Reveries of the Solitary Walker",a:"Rousseau",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/9329993-M.jpg"},
+  {t:"Capitalism: A Ghost Story",a:"Arundhati Roy",g:"History",c:"https://covers.openlibrary.org/b/id/7294353-M.jpg"},
+  {t:"The Ascent of Rum Doodle",a:"W.E. Bowman",g:"Fiction",c:"https://covers.openlibrary.org/b/id/450606-M.jpg"},
+  {t:"A Flag on the Island",a:"V.S. Naipaul",g:"Fiction"},
+  {t:"Speed",a:"Vaclav Smil",g:"Science & Ideas"},
+  {t:"Optimism over Despair",a:"Noam Chomsky",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/14851900-M.jpg"},
+  {t:"Home and Away",a:"Karl Ove Knausgaard",g:"Sports & Culture",c:"https://covers.openlibrary.org/b/id/12516508-M.jpg"},
+  {t:"Surely You're Joking, Mr. Feynman!",a:"Richard Feynman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9274698-M.jpg"},
+  {t:"Mara and Dann",a:"Doris Lessing",g:"Fiction",c:"https://covers.openlibrary.org/b/id/22452-M.jpg"},
+  {t:"The Diaries of Franz Kafka",a:"Franz Kafka",g:"Fiction",c:"https://covers.openlibrary.org/b/id/997423-M.jpg"},
+  {t:"Things I Have Learned",a:"Stefan Sagmeister",g:"Design",c:"https://covers.openlibrary.org/b/id/2646415-M.jpg"},
+  {t:"India: A Wounded Civilization",a:"V.S. Naipaul",g:"History",c:"https://covers.openlibrary.org/b/id/4648257-M.jpg"},
+  {t:"The Story of Philosophy",a:"Will Durant",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/405360-M.jpg"},
+  {t:"Ivanhoe",a:"Sir Walter Scott",g:"Fiction",c:"https://covers.openlibrary.org/b/id/1956783-M.jpg"},
+  {t:"The Mill on the Floss",a:"George Eliot",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6655232-M.jpg"},
+  {t:"The Psychology of Love",a:"Sigmund Freud",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8242841-M.jpg"},
+  {t:"Medieval Technology and Social Change",a:"Lynn White",g:"History",c:"https://covers.openlibrary.org/b/id/9578569-M.jpg"},
+  {t:"Aesthetic Theory",a:"Theodor Adorno",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/7257218-M.jpg"},
+  {t:"The Aye-Aye and I",a:"Gerald Durrell",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/5072755-M.jpg"},
+  {t:"The Warren Buffett Way",a:"Robert Hagstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/9700984-M.jpg"},
+  {t:"The Everything Store",a:"Brad Stone",g:"Business",c:"https://covers.openlibrary.org/b/id/7264584-M.jpg"},
+  {t:"The Hindi Heartland",a:"Ghazala Wahab",g:"History"},
+  {t:"Is a River Alive?",a:"Robert Macfarlane",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/14846855-M.jpg"},
+  {t:"The Free Voice",a:"Ravish Kumar",g:"History",c:"https://covers.openlibrary.org/b/id/10871693-M.jpg"},
+  {t:"Interpreting Early India",a:"Romila Thapar",g:"History",c:"https://covers.openlibrary.org/b/id/13499504-M.jpg"},
+  {t:"Paro: Dreams of Passion",a:"Namita Gokhale",g:"Fiction",c:"https://covers.openlibrary.org/b/id/1117125-M.jpg"},
+  {t:"Talks with Students",a:"J. Krishnamurti",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/4059520-M.jpg"},
+  {t:"Mother Mary Comes to Me",a:"Arundhati Roy",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14981460-M.jpg"},
+  {t:"The Scaling Era",a:"Dwarkesh Patel",g:"Science & Ideas"},
+  {t:"Becoming Goan",a:"Mendonça Bambawale",g:"History"},
+  {t:"Poverty and Income Distribution in India",a:"Abhijit Banerjee",g:"Economics"},
+  {t:"Scoop!",a:"Kuldip Nayar",g:"History",c:"https://covers.openlibrary.org/b/id/1046216-M.jpg"},
+  {t:"Why Nobody Understands Quantum Physics",a:"Frank Verstraete",g:"Science & Ideas"},
+  {t:"Marx Engels Selected Works",a:"Marx & Engels",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/11048623-M.jpg"},
+  {t:"Fifty Great Contemporary Thinkers",a:"John Lechte",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/1216392-M.jpg"},
+  {t:"An Introduction to Indian Philosophy",a:"",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/14905654-M.jpg"},
+  {t:"The Nagas",a:"",g:"History",c:"https://covers.openlibrary.org/b/id/6917318-M.jpg"},
+  {t:"A History of South India",a:"K.A.N. Sastri",g:"History"},
+  {t:"The Greening of America",a:"Charles A. Reich",g:"History",c:"https://covers.openlibrary.org/b/id/7889534-M.jpg"},
+  {t:"The Age of Atrocity",a:"Lawrence Langer",g:"History",c:"https://covers.openlibrary.org/b/id/4421304-M.jpg"},
+  {t:"Orwell",a:"Raymond Williams",g:"Literature",c:"https://covers.openlibrary.org/b/id/13175019-M.jpg"},
+  {t:"Hawthorne & History",a:"J. Hillis Miller",g:"Literature",c:"https://covers.openlibrary.org/b/id/12307847-M.jpg"},
+  {t:"Theory of Meaning",a:"Lehrer & Lehrer",g:"Philosophy"},
+];
+
+document.getElementById('book-count').textContent = B.length + ' books';
+
+// Group by genre
+const genres = {};
+B.forEach(b => {
+  if (!genres[b.g]) genres[b.g] = [];
+  genres[b.g].push(b);
+});
+
+// Seeded random
+function seededRandom(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+const grid = document.getElementById('grid');
+const sortedGenres = Object.entries(genres).sort((a, b) => b[1].length - a[1].length);
+
+sortedGenres.forEach(([genre, books]) => {
+  const section = document.createElement('div');
+  section.className = 'genre-pile';
+
+  const label = document.createElement('div');
+  label.className = 'genre-label';
+  label.innerHTML = genre + '<span>' + books.length + '</span>';
+  section.appendChild(label);
+
+  const pileArea = document.createElement('div');
+  pileArea.className = 'pile-area';
+
+  // Tighter grid: more cols, less overlap
+  const cols = Math.min(books.length, 4);
+  const rows = Math.ceil(books.length / cols);
+  const cardW = 88, cardH = 130;
+  const spacingX = 56;
+  const spacingY = 36;
+  const pileW = cols * spacingX + (cardW - spacingX);
+  const pileH = rows * spacingY + (cardH - spacingY);
+
+  pileArea.style.width = pileW + 'px';
+  pileArea.style.height = pileH + 'px';
+
+  const rand = seededRandom(genre.length * 137 + books.length * 43);
+
+  books.forEach((book, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+
+    const baseX = col * spacingX;
+    const baseY = row * spacingY;
+
+    // Gentler random offsets
+    const offsetX = (rand() - 0.5) * 10;
+    const offsetY = (rand() - 0.5) * 8;
+    const rotation = (rand() - 0.5) * 6; // -3 to +3 deg
+    const z = Math.floor(rand() * 10) + 1;
+
+    const card = document.createElement('div');
+    card.className = 'book-card';
+    card.style.left = (baseX + offsetX) + 'px';
+    card.style.top = (baseY + offsetY) + 'px';
+    card.style.zIndex = z;
+    card.style.transform = 'rotate(' + rotation.toFixed(1) + 'deg)';
+
+    if (book.c) {
+      const img = document.createElement('img');
+      img.src = book.c;
+      img.alt = book.t;
+      img.loading = 'lazy';
+      card.appendChild(img);
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'placeholder';
+      ph.textContent = book.t;
+      card.appendChild(ph);
+    }
+
+    card.addEventListener('click', () => openDetail(book));
+    pileArea.appendChild(card);
+  });
+
+  section.appendChild(pileArea);
+  grid.appendChild(section);
+});
+
+// Detail view
+const detail = document.getElementById('detail');
+let currentBook = null;
+let currentGenreBooks = [];
+
+function openDetail(book) {
+  currentBook = book;
+  currentGenreBooks = genres[book.g];
+
+  document.getElementById('detail-genre').textContent = book.g;
+  renderDetailBook(book);
+
+  // Build carousel
+  const track = document.getElementById('carousel-track');
+  track.innerHTML = '';
+  document.getElementById('carousel-heading').textContent =
+    'More in ' + book.g + ' (' + currentGenreBooks.length + ')';
+
+  currentGenreBooks.forEach((b, i) => {
+    const item = document.createElement('div');
+    item.className = 'carousel-item' + (b.t === book.t ? ' active' : '');
+    item.innerHTML = '<div class="ci-cover">' +
+      (b.c ? '<img src="' + b.c + '" alt="" loading="lazy">' :
+        '<div class="placeholder">' + b.t + '</div>') +
+      '</div><div class="ci-title">' + b.t + '</div>';
+    item.addEventListener('click', () => {
+      renderDetailBook(b);
+      currentBook = b;
+      track.querySelectorAll('.carousel-item').forEach((el, j) => {
+        el.classList.toggle('active', j === i);
+      });
+      scrollToActive(track, item);
+    });
+    track.appendChild(item);
+  });
+
+  // Scroll to active
+  requestAnimationFrame(() => {
+    const active = track.querySelector('.active');
+    if (active) scrollToActive(track, active);
+  });
+
+  detail.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function scrollToActive(track, el) {
+  const trackRect = track.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const offset = elRect.left - trackRect.left + track.scrollLeft - trackRect.width / 2 + elRect.width / 2;
+  track.scrollTo({ left: offset, behavior: 'smooth' });
+}
+
+function renderDetailBook(book) {
+  const cover = document.getElementById('detail-cover');
+  if (book.c) {
+    cover.innerHTML = '<img src="' + book.c + '" alt="' + book.t + '">';
+  } else {
+    cover.innerHTML = '<div class="placeholder">' + book.t + '</div>';
+  }
+  document.getElementById('detail-title').textContent = book.t;
+  document.getElementById('detail-author').textContent = book.a || '';
+  document.getElementById('detail-gtag').textContent = book.g;
+}
+
+function closeDetail() {
+  detail.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('detail-close').addEventListener('click', closeDetail);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDetail();
+});
+</script>
+
+</body>
+</html>
