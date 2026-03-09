@@ -34,11 +34,16 @@ function renderSky(container, books, opts = {}) {
   titleEl.innerHTML =
     '<h1>' + title + '</h1>' +
     '<div class="sub">' + subtitle + '</div>' +
-    '<button id="show-all">Show All</button>' +
-    (showMakeYourOwn
-      ? '<a href="/onboard" class="make-own">Make Your Own</a>'
-      : '');
+    '<button id="show-all">Show All</button>';
   container.appendChild(titleEl);
+
+  if (showMakeYourOwn) {
+    const makeBtn = document.createElement('a');
+    makeBtn.href = '/onboard';
+    makeBtn.className = 'make-own';
+    makeBtn.textContent = 'Make Your Own';
+    container.appendChild(makeBtn);
+  }
 
   // Modal
   const mbg = document.createElement('div');

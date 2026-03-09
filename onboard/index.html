@@ -4,10 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Create Your Night Sky</title>
-<meta name="supabase-url" content="">
-<meta name="supabase-anon-key" content="">
+<meta name="supabase-url" content="https://qndadicpfrqxxsvodpqc.supabase.co">
+<meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFuZGFkaWNwZnJxeHhzdm9kcHFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMzIyMjgsImV4cCI6MjA4ODYwODIyOH0.AqxGEmldvJeps9SbJDMBfMeV0EmNDUkNaqtttfZbvoU">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// Only load Supabase SDK if not in mock mode
+if (!new URLSearchParams(window.location.search).has('mock')) {
+  document.write('<scr'+'ipt src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/scr'+'ipt>');
+}
+</script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 body{
@@ -253,7 +258,10 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
       <input type="text" id="input-add-book" placeholder="Add a book title...">
       <button class="btn" id="btn-add-book">Add</button>
     </div>
-    <button class="btn primary" id="btn-save" style="margin-top:24px">Save & Create Sky</button>
+    <div class="btn-row" style="margin-top:24px">
+      <button class="btn" id="btn-more-photos">Add More Photos</button>
+      <button class="btn primary" id="btn-save">Save & Create Sky</button>
+    </div>
   </div>
 
   <!-- Step 6: Done -->
@@ -269,8 +277,59 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
 
 </div>
 
-<script src="../js/supabase-client.js"></script>
-<script src="../js/openlibrary.js"></script>
+<script>
+const MOCK = new URLSearchParams(window.location.search).has('mock');
+
+// In mock mode, provide stub implementations instead of loading real modules
+if (MOCK) {
+  // Mock Supabase helpers
+  window.getSupabase = () => ({});
+  window.getSession = async () => ({ user: { id: 'mock-uid', user_metadata: { full_name: 'Pratyush' } } });
+  window.getUser = async () => ({ id: 'mock-uid' });
+  window.signInWithGoogle = () => {};
+
+  // Mock OpenLibrary — return real covers for known books, null otherwise
+  const MOCK_COVERS = {
+    'sapiens': 'https://covers.openlibrary.org/b/id/8634250-M.jpg',
+    'the alchemist': 'https://covers.openlibrary.org/b/id/7414780-M.jpg',
+    'thinking, fast and slow': 'https://covers.openlibrary.org/b/id/15174454-M.jpg',
+    'exhalation': 'https://covers.openlibrary.org/b/id/8793546-M.jpg',
+    'antifragile': 'https://covers.openlibrary.org/b/id/9180157-M.jpg',
+    'atomic habits': 'https://covers.openlibrary.org/b/id/12539702-M.jpg',
+    'the black swan': 'https://covers.openlibrary.org/b/id/5721840-M.jpg',
+    'man\'s search for meaning': 'https://covers.openlibrary.org/b/id/8516506-M.jpg',
+    'range': 'https://covers.openlibrary.org/b/id/8782615-M.jpg',
+    'behave': 'https://covers.openlibrary.org/b/id/8814831-M.jpg',
+    'factfulness': 'https://covers.openlibrary.org/b/id/8186237-M.jpg',
+    'outliers': 'https://covers.openlibrary.org/b/id/10021591-M.jpg',
+  };
+  window.searchCover = async (title) => MOCK_COVERS[(title||'').toLowerCase()] || null;
+  window.fetchCovers = async (books) => {
+    for (const b of books) {
+      if (!b.c) { const u = MOCK_COVERS[(b.t||'').toLowerCase()]; if (u) b.c = u; }
+    }
+    return books;
+  };
+
+  // Mock book identification result
+  window.MOCK_BOOKS = [
+    { title: 'Sapiens', author: 'Yuval Noah Harari', cover_url: MOCK_COVERS['sapiens'] },
+    { title: 'Thinking, Fast and Slow', author: 'Daniel Kahneman', cover_url: MOCK_COVERS['thinking, fast and slow'] },
+    { title: 'The Alchemist', author: 'Paulo Coelho', cover_url: MOCK_COVERS['the alchemist'] },
+    { title: 'Exhalation', author: 'Ted Chiang', cover_url: MOCK_COVERS['exhalation'] },
+    { title: 'Antifragile', author: 'Nassim Nicholas Taleb', cover_url: MOCK_COVERS['antifragile'] },
+    { title: 'Atomic Habits', author: 'James Clear', cover_url: MOCK_COVERS['atomic habits'] },
+    { title: 'The Black Swan', author: 'Nassim Nicholas Taleb', cover_url: MOCK_COVERS['the black swan'] },
+    { title: 'Man\'s Search for Meaning', author: 'Viktor Frankl', cover_url: MOCK_COVERS['man\'s search for meaning'] },
+    { title: 'Range', author: 'David Epstein', cover_url: MOCK_COVERS['range'] },
+    { title: 'Behave', author: 'Robert Sapolsky', cover_url: MOCK_COVERS['behave'] },
+    { title: 'Factfulness', author: 'Hans Rosling', cover_url: MOCK_COVERS['factfulness'] },
+    { title: 'Outliers', author: 'Malcolm Gladwell', cover_url: MOCK_COVERS['outliers'] },
+  ];
+}
+</script>
+<script>if (!MOCK) document.write('<scr'+'ipt src="../js/supabase-client.js"><\/scr'+'ipt>')</script>
+<script>if (!MOCK) document.write('<scr'+'ipt src="../js/openlibrary.js"><\/scr'+'ipt>')</script>
 <script>
 (async () => {
   // --- State ---
@@ -278,9 +337,19 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
   let user = null;
   let userProfile = null;
   let photoFiles = [];
-  let identifiedBooks = []; // [{title, author, cover_url?}]
+  let identifiedBooks = [];
 
   const steps = ['welcome', 'username', 'upload', 'processing', 'review', 'done'];
+
+  function mergeBooks(newBooks) {
+    const existing = new Set(identifiedBooks.map(b => b.title.toLowerCase().trim()));
+    for (const b of newBooks) {
+      if (!existing.has(b.title.toLowerCase().trim())) {
+        identifiedBooks.push(b);
+        existing.add(b.title.toLowerCase().trim());
+      }
+    }
+  }
 
   function showStep(name) {
     currentStep = name;
@@ -291,35 +360,40 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
   }
 
   // --- Check if already signed in ---
-  try {
-    const session = await getSession();
-    if (session) {
-      user = session.user;
-      // Check if user already has a profile
-      const sb = getSupabase();
-      const { data: profile } = await sb
-        .from('users')
-        .select('username, display_name')
-        .eq('id', user.id)
-        .single();
+  if (!MOCK) {
+    try {
+      const session = await getSession();
+      if (session) {
+        user = session.user;
+        const sb = getSupabase();
+        const { data: profile } = await sb
+          .from('users')
+          .select('username, display_name')
+          .eq('id', user.id)
+          .single();
 
-      if (profile) {
-        userProfile = profile;
-        // Returning user — go to upload step
-        showStep('upload');
-      } else {
-        // New user — go to username step
-        document.getElementById('input-display').value = user.user_metadata?.full_name || '';
-        showStep('username');
+        if (profile) {
+          userProfile = profile;
+          showStep('upload');
+        } else {
+          document.getElementById('input-display').value = user.user_metadata?.full_name || '';
+          showStep('username');
+        }
       }
+    } catch (e) {
+      // Not signed in, show welcome
     }
-  } catch (e) {
-    // Not signed in, show welcome
   }
 
   // --- Step 1: Google Sign-in ---
   document.getElementById('btn-google').addEventListener('click', () => {
-    signInWithGoogle();
+    if (MOCK) {
+      user = { id: 'mock-uid', user_metadata: { full_name: 'Pratyush' } };
+      document.getElementById('input-display').value = 'Pratyush';
+      showStep('username');
+    } else {
+      signInWithGoogle();
+    }
   });
 
   // --- Step 2: Username ---
@@ -342,9 +416,16 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
     btnUsername.disabled = true;
     btnUsername.textContent = 'Checking...';
 
+    if (MOCK) {
+      await new Promise(r => setTimeout(r, 400));
+      userProfile = { username, display_name: displayName };
+      btnUsername.textContent = 'Continue';
+      showStep('upload');
+      return;
+    }
+
     try {
       const sb = getSupabase();
-      // Check uniqueness
       const { data: existing } = await sb
         .from('users')
         .select('id')
@@ -359,7 +440,6 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
         return;
       }
 
-      // Create profile
       const { error } = await sb.from('users').insert({
         id: user.id,
         username,
@@ -455,11 +535,26 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
     if (photoFiles.length === 0) return;
     showStep('processing');
 
+    if (MOCK) {
+      const statusEl = document.getElementById('processing-status');
+      statusEl.textContent = 'Uploading photos...';
+      await new Promise(r => setTimeout(r, 800));
+      statusEl.textContent = 'Identifying books in your photos...';
+      await new Promise(r => setTimeout(r, 1500));
+      statusEl.textContent = 'Finding book covers...';
+      await new Promise(r => setTimeout(r, 800));
+
+      mergeBooks(window.MOCK_BOOKS);
+      document.getElementById('review-title').textContent = 'Found ' + identifiedBooks.length + ' books!';
+      renderBookList();
+      showStep('review');
+      return;
+    }
+
     try {
       const sb = getSupabase();
       const session = await getSession();
 
-      // Upload photos to Supabase Storage
       const statusEl = document.getElementById('processing-status');
       statusEl.textContent = 'Uploading photos...';
 
@@ -471,7 +566,6 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
           .upload(path, file);
         if (uploadErr) throw uploadErr;
 
-        // Record in user_photos
         await sb.from('user_photos').insert({
           user_id: user.id,
           storage_path: path,
@@ -481,7 +575,6 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
 
       statusEl.textContent = 'Identifying books in your photos...';
 
-      // Call identify API
       const res = await fetch('/api/identify-books', {
         method: 'POST',
         headers: {
@@ -496,16 +589,16 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
       }
 
       const data = await res.json();
-      identifiedBooks = data.books || [];
+      const newBooks = data.books || [];
 
-      // Fetch covers client-side
       statusEl.textContent = 'Finding book covers...';
-      const booksForCovers = identifiedBooks.map(b => ({ t: b.title, a: b.author }));
+      const booksForCovers = newBooks.map(b => ({ t: b.title, a: b.author }));
       await fetchCovers(booksForCovers);
-      identifiedBooks.forEach((b, i) => {
+      newBooks.forEach((b, i) => {
         if (booksForCovers[i].c) b.cover_url = booksForCovers[i].c;
       });
 
+      mergeBooks(newBooks);
       document.getElementById('review-title').textContent = 'Found ' + identifiedBooks.length + ' books!';
       renderBookList();
       showStep('review');
@@ -547,10 +640,14 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
     if (!title) return;
 
     const book = { title, author: '' };
-    // Try to find cover
-    const tmp = [{ t: title, a: '' }];
-    await fetchCovers(tmp);
-    if (tmp[0].c) book.cover_url = tmp[0].c;
+    if (MOCK) {
+      const url = await searchCover(title);
+      if (url) book.cover_url = url;
+    } else {
+      const tmp = [{ t: title, a: '' }];
+      await fetchCovers(tmp);
+      if (tmp[0].c) book.cover_url = tmp[0].c;
+    }
 
     identifiedBooks.push(book);
     renderBookList();
@@ -564,10 +661,19 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
     btnSave.disabled = true;
     btnSave.textContent = 'Saving...';
 
+    if (MOCK) {
+      await new Promise(r => setTimeout(r, 600));
+      const username = userProfile?.username || 'pratyush';
+      const link = window.location.origin + '/sky/' + username;
+      document.getElementById('sky-link').textContent = link;
+      document.getElementById('btn-view-sky').href = '/sky/' + username;
+      showStep('done');
+      return;
+    }
+
     try {
       const sb = getSupabase();
 
-      // Insert books
       const rows = identifiedBooks.map((b, i) => ({
         user_id: user.id,
         title: b.title,
@@ -591,6 +697,14 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
       btnSave.disabled = false;
       btnSave.textContent = 'Save & Create Sky';
     }
+  });
+
+  // --- Review: Add More Photos ---
+  document.getElementById('btn-more-photos').addEventListener('click', () => {
+    photoFiles = [];
+    renderThumbs();
+    btnProcess.disabled = true;
+    showStep('upload');
   });
 
   // --- Step 6: Done ---
