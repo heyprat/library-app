@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Pratyush's Library — Explore the House</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+body {
+  background: #1a1a2e;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  font-family: 'DM Sans', sans-serif;
+  color: #fff;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+canvas#game { display: block; position: fixed; inset: 0; image-rendering: pixelated; }
+
+#hud {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 8px 24px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  white-space: nowrap;
+}
+
+#hud .sep { width: 1px; height: 16px; background: rgba(255,255,255,0.15); }
+
+#prompt-bar {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  z-index: 50;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 10px 24px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.9);
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+}
+
+#prompt-bar.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+#toast-container {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 8px 20px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.9);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.3s, transform 0.3s;
+  white-space: nowrap;
+}
+
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.bomb { border-color: rgba(255,80,60,0.3); color: #ff9080; }
+.toast.rick { border-color: rgba(100,180,255,0.3); color: #8ac4ff; }
+
+#books-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(20,20,40,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.5s ease;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 80px 24px 40px;
+}
+
+#books-overlay.visible { opacity: 1; pointer-events: auto; }
+
+#books-overlay h2 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 28px; font-weight: 400;
+  text-align: center; margin-bottom: 32px;
+  color: rgba(255,255,255,0.9);
+}
+
+#books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 20px; max-width: 960px; margin: 0 auto;
+}
+
+.book-card-o {
+  text-align: center; opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.book-card-o.show { opacity: 1; transform: translateY(0); }
+.book-card-o img {
+  width: 100%; aspect-ratio: 2/3; object-fit: cover;
+  border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  margin-bottom: 8px;
+}
+.book-card-o .title { font-family: 'Instrument Serif', serif; font-size: 13px; line-height: 1.2; color: rgba(255,255,255,0.9); margin-bottom: 2px; }
+.book-card-o .author { font-size: 11px; color: rgba(255,255,255,0.45); }
+
+#close-overlay {
+  position: fixed; top: 24px; right: 24px; z-index: 210;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.7);
+  font-size: 20px; cursor: pointer;
+  display: none; align-items: center; justify-content: center;
+}
+#books-overlay.visible ~ #close-overlay { display: flex; }
+
+#victory-bar {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+  z-index: 60; display: flex; gap: 12px;
+  opacity: 0; pointer-events: none; transition: opacity 0.5s;
+}
+#victory-bar.visible { opacity: 1; pointer-events: auto; }
+#victory-bar button {
+  padding: 10px 28px; border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(20px);
+  color: rgba(255,255,255,0.9); font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: all 0.25s; letter-spacing: 0.02em;
+}
+#victory-bar button:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+
+/* Mobile d-pad */
+#dpad {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 80;
+}
+@media (max-width: 800px), (pointer: coarse) {
+  #dpad { display: block; }
+}
+.dpad-btn {
+  position: absolute;
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(12px);
+  color: rgba(255,255,255,0.7);
+  font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.dpad-btn:active { background: rgba(255,255,255,0.15); }
+#dpad-up    { left: 56px; top: 0; }
+#dpad-down  { left: 56px; top: 112px; }
+#dpad-left  { left: 0;    top: 56px; }
+#dpad-right { left: 112px; top: 56px; }
+#dpad-action {
+  left: 56px; top: 56px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.05em;
+}
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <span>Books: <span id="book-count">0</span>/<span id="book-total">0</span></span>
+  <div class="sep"></div>
+  <span>Use arrows to walk, Space to interact</span>
+</div>
+
+<div id="prompt-bar"></div>
+<div id="toast-container"></div>
+
+<div id="books-overlay">
+  <h2>Collected Books</h2>
+  <div id="books-grid"></div>
+</div>
+<button id="close-overlay" onclick="closeOverlay()">&times;</button>
+
+<div id="victory-bar">
+  <button onclick="showCollection()">View Collection</button>
+  <button onclick="restartGame()">Play Again</button>
+</div>
+
+<div id="dpad">
+  <div class="dpad-btn" id="dpad-up" ontouchstart="dpadDown(0,-1)" ontouchend="dpadUp(0,-1)">&#9650;</div>
+  <div class="dpad-btn" id="dpad-down" ontouchstart="dpadDown(0,1)" ontouchend="dpadUp(0,1)">&#9660;</div>
+  <div class="dpad-btn" id="dpad-left" ontouchstart="dpadDown(-1,0)" ontouchend="dpadUp(-1,0)">&#9664;</div>
+  <div class="dpad-btn" id="dpad-right" ontouchstart="dpadDown(1,0)" ontouchend="dpadUp(1,0)">&#9654;</div>
+  <div class="dpad-btn" id="dpad-action" ontouchstart="interact()">ACT</div>
+</div>
+
+<script>
+// ===================== BOOK DATA =====================
+const BOOKS=[
+  {t:"Addiction by Design",a:"Natasha Dow Schüll",c:"https://covers.openlibrary.org/b/id/12898178-M.jpg"},
+  {t:"Extreme Economies",a:"Richard Davies",c:"https://covers.openlibrary.org/b/id/12707846-M.jpg"},
+  {t:"Small Rain",a:"Garth Greenwell",c:"https://covers.openlibrary.org/b/id/14744666-M.jpg"},
+  {t:"The Maniac",a:"Benjamín Labatut",c:"https://covers.openlibrary.org/b/id/14036185-M.jpg"},
+  {t:"Noise",a:"Daniel Kahneman",c:"https://covers.openlibrary.org/b/id/10981966-M.jpg"},
+  {t:"Range",a:"David Epstein",c:"https://covers.openlibrary.org/b/id/8782615-M.jpg"},
+  {t:"How We Got to Now",a:"Steven Johnson",c:"https://covers.openlibrary.org/b/id/9692318-M.jpg"},
+  {t:"The Money Trap",a:"Alok Sama",c:"https://covers.openlibrary.org/b/id/14802826-M.jpg"},
+  {t:"Exhalation",a:"Ted Chiang",c:"https://covers.openlibrary.org/b/id/8793546-M.jpg"},
+  {t:"Small Data",a:"Martin Lindstrom",c:"https://covers.openlibrary.org/b/id/8881323-M.jpg"},
+  {t:"Atomic Habits",a:"James Clear",c:"https://covers.openlibrary.org/b/id/12539702-M.jpg"},
+  {t:"Loonshots",a:"Safi Bahcall",c:"https://covers.openlibrary.org/b/id/8518798-M.jpg"},
+  {t:"No Rules Rules",a:"Reed Hastings",c:"https://covers.openlibrary.org/b/id/10524294-M.jpg"},
+  {t:"Antifragile",a:"Nassim Nicholas Taleb",c:"https://covers.openlibrary.org/b/id/9180157-M.jpg"},
+  {t:"Thinking, Fast and Slow",a:"Daniel Kahneman",c:"https://covers.openlibrary.org/b/id/15174454-M.jpg"},
+  {t:"Outliers",a:"Malcolm Gladwell",c:"https://covers.openlibrary.org/b/id/10021591-M.jpg"},
+  {t:"Sapiens",a:"Yuval Noah Harari",c:"https://covers.openlibrary.org/b/id/8634250-M.jpg"},
+  {t:"The Alchemist",a:"Paulo Coelho",c:"https://covers.openlibrary.org/b/id/7414780-M.jpg"},
+  {t:"The Lean Startup",a:"Eric Ries",c:"https://covers.openlibrary.org/b/id/7104760-M.jpg"},
+  {t:"Factfulness",a:"Hans Rosling",c:"https://covers.openlibrary.org/b/id/8186237-M.jpg"},
+  {t:"Man's Search for Meaning",a:"Viktor Frankl",c:"https://covers.openlibrary.org/b/id/8516506-M.jpg"},
+  {t:"Behave",a:"Robert Sapolsky",c:"https://covers.openlibrary.org/b/id/8814831-M.jpg"},
+  {t:"The Black Swan",a:"Nassim Nicholas Taleb",c:"https://covers.openlibrary.org/b/id/5721840-M.jpg"},
+  {t:"Pride and Prejudice",a:"Jane Austen",c:"https://covers.openlibrary.org/b/id/523015-M.jpg"},
+  {t:"Surely You're Joking, Mr. Feynman!",a:"Richard Feynman",c:"https://covers.openlibrary.org/b/id/9274698-M.jpg"},
+  {t:"The Everything Store",a:"Brad Stone",c:"https://covers.openlibrary.org/b/id/7264584-M.jpg"},
+  {t:"Stories of Your Life and Others",a:"Ted Chiang",c:"https://covers.openlibrary.org/b/id/524046-M.jpg"},
+  {t:"Guns, Germs, and Steel",a:"Jared Diamond",c:"https://covers.openlibrary.org/b/id/7884018-M.jpg"},
+];
+
+const RICK_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+
+// ===================== MAP =====================
+// Tile types
+const T = {
+  VOID: 0, FLOOR: 1, WALL: 2, WALL_TOP: 3,
+  RUG: 4, WOOD: 5, GRASS: 6, PATH: 7, WATER: 8,
+};
+
+const TILE = 32;  // pixel size of one tile
+const COLS = 40;
+const ROWS = 30;
+
+// Build the map procedurally
+const map = [];
+for (let y = 0; y < ROWS; y++) {
+  map[y] = [];
+  for (let x = 0; x < COLS; x++) map[y][x] = T.VOID;
+}
+
+// Helper to fill a rect
+function fillRect(x1, y1, w, h, tile) {
+  for (let y = y1; y < y1 + h; y++)
+    for (let x = x1; x < x1 + w; x++)
+      if (y >= 0 && y < ROWS && x >= 0 && x < COLS) map[y][x] = tile;
+}
+
+// Helper for room with walls
+function room(x, y, w, h, floorTile = T.FLOOR) {
+  fillRect(x, y, w, 1, T.WALL_TOP);
+  fillRect(x, y + 1, 1, h - 1, T.WALL);
+  fillRect(x + w - 1, y + 1, 1, h - 1, T.WALL);
+  fillRect(x, y + h - 1, w, 1, T.WALL);
+  fillRect(x + 1, y + 1, w - 2, h - 2, floorTile);
+}
+
+// Outdoor grass
+fillRect(0, 0, COLS, ROWS, T.GRASS);
+
+// Garden path
+fillRect(17, 0, 3, 8, T.PATH);
+fillRect(8, 7, 22, 2, T.PATH);
+
+// Small pond
+fillRect(30, 2, 4, 3, T.WATER);
+
+// === LIVING ROOM (top-left) ===
+room(6, 8, 14, 10);
+fillRect(8, 10, 10, 6, T.RUG);
+
+// === KITCHEN (top-right) ===
+room(20, 8, 12, 10);
+fillRect(22, 10, 8, 6, T.WOOD);
+
+// Doorway between living & kitchen
+fillRect(20, 12, 1, 2, T.FLOOR);
+
+// === HALLWAY ===
+fillRect(10, 18, 18, 3, T.FLOOR);
+// Doors into rooms above
+fillRect(12, 18, 2, 1, T.FLOOR);
+fillRect(24, 18, 2, 1, T.FLOOR);
+
+// === BEDROOM (bottom-left) ===
+room(4, 20, 12, 8);
+fillRect(6, 22, 8, 4, T.RUG);
+// Door
+fillRect(10, 20, 2, 1, T.FLOOR);
+
+// === STUDY (bottom-right) ===
+room(18, 20, 14, 8);
+fillRect(20, 22, 10, 4, T.WOOD);
+// Door
+fillRect(24, 20, 2, 1, T.FLOOR);
+
+// Front door
+fillRect(17, 8, 3, 1, T.FLOOR);
+
+// Walls along hallway
+fillRect(6, 18, 4, 1, T.WALL);
+fillRect(6, 20, 4, 1, T.WALL);
+fillRect(28, 18, 4, 1, T.WALL);
+fillRect(16, 20, 2, 1, T.WALL);
+fillRect(32, 20, 1, 1, T.WALL);
+
+// ===================== FURNITURE =====================
+// Furniture items: {x, y, w, h, type, color, label}
+const furniture = [
+  // Living room
+  { x: 8, y: 11, w: 3, h: 2, color: '#6b5b7b', label: 'Couch' },
+  { x: 15, y: 10, w: 2, h: 2, color: '#4a5568', label: 'TV' },
+  { x: 8, y: 15, w: 2, h: 1, color: '#8b6f4e', label: 'Coffee Table' },
+  // Kitchen
+  { x: 22, y: 10, w: 4, h: 1, color: '#718096', label: 'Counter' },
+  { x: 28, y: 10, w: 2, h: 1, color: '#718096', label: 'Stove' },
+  { x: 24, y: 14, w: 3, h: 2, color: '#8b6f4e', label: 'Dining Table' },
+  // Bedroom
+  { x: 6, y: 23, w: 3, h: 4, color: '#7c6ea0', label: 'Bed' },
+  { x: 10, y: 23, w: 1, h: 1, color: '#8b6f4e', label: 'Nightstand' },
+  { x: 13, y: 24, w: 1, h: 3, color: '#8b6f4e', label: 'Wardrobe' },
+  // Study
+  { x: 20, y: 22, w: 3, h: 2, color: '#6b5b3e', label: 'Desk' },
+  { x: 28, y: 22, w: 1, h: 4, color: '#8b6f4e', label: 'Bookshelf' },
+  { x: 25, y: 25, w: 2, h: 1, color: '#5a6e5a', label: 'Plant' },
+  // Garden
+  { x: 5, y: 2, w: 3, h: 2, color: '#5a6e5a', label: 'Tree' },
+  { x: 12, y: 1, w: 2, h: 2, color: '#5a6e5a', label: 'Tree' },
+  { x: 35, y: 5, w: 2, h: 2, color: '#5a6e5a', label: 'Tree' },
+];
+
+// ===================== INTERACTABLE OBJECTS =====================
+// type: 'book' | 'bomb' | 'rick' | 'box'
+// box contains one of the above randomly
+let objects = [];
+let collectedBooks = [];
+let images = {};
+let phase = 'playing'; // playing | victory
+let explosions = []; // {x, y, frame, maxFrames}
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function setupObjects() {
+  objects = [];
+  collectedBooks = [];
+  explosions = [];
+  phase = 'playing';
+
+  const bookIndices = shuffleArray(BOOKS.map((_, i) => i));
+
+  // Predefined locations with types
+  const spots = [
+    // Books on shelves (study) — visible
+    { x: 28, y: 23, vis: 'shelf' },
+    { x: 28, y: 24, vis: 'shelf' },
+    { x: 28, y: 25, vis: 'shelf' },
+    // Books on desk
+    { x: 21, y: 22, vis: 'book' },
+    { x: 22, y: 23, vis: 'book' },
+    // Books on nightstand
+    { x: 10, y: 24, vis: 'book' },
+    // Books on coffee table
+    { x: 8, y: 15, vis: 'book' },
+    { x: 9, y: 15, vis: 'book' },
+    // Books on dining table
+    { x: 25, y: 14, vis: 'book' },
+    // Boxes in living room
+    { x: 12, y: 14, vis: 'box' },
+    { x: 14, y: 10, vis: 'box' },
+    // Boxes in kitchen
+    { x: 22, y: 12, vis: 'box' },
+    { x: 29, y: 14, vis: 'box' },
+    // Boxes in bedroom
+    { x: 12, y: 26, vis: 'box' },
+    { x: 7, y: 22, vis: 'box' },
+    // Boxes in study
+    { x: 24, y: 23, vis: 'box' },
+    { x: 26, y: 22, vis: 'box' },
+    // Books in garden
+    { x: 8, y: 4, vis: 'book' },
+    { x: 18, y: 3, vis: 'book' },
+    { x: 25, y: 5, vis: 'book' },
+    // More boxes outside
+    { x: 14, y: 5, vis: 'box' },
+    { x: 32, y: 6, vis: 'box' },
+    { x: 22, y: 2, vis: 'box' },
+    // Hidden spots
+    { x: 30, y: 25, vis: 'box' },
+    { x: 6, y: 10, vis: 'box' },
+    { x: 19, y: 16, vis: 'box' },
+    { x: 15, y: 22, vis: 'book' },
+    { x: 10, y: 19, vis: 'book' },
+  ];
+
+  let bookI = 0;
+  for (const spot of spots) {
+    if (bookI >= BOOKS.length) break;
+
+    let content;
+    if (spot.vis === 'box') {
+      // Boxes: 55% book, 25% bomb, 20% rick
+      const r = Math.random();
+      if (r < 0.55) content = { type: 'book', bookIdx: bookIndices[bookI++] };
+      else if (r < 0.80) content = { type: 'bomb' };
+      else content = { type: 'rick' };
+    } else {
+      content = { type: 'book', bookIdx: bookIndices[bookI++] };
+    }
+
+    objects.push({
+      x: spot.x, y: spot.y,
+      vis: spot.vis, // how it looks: 'book', 'shelf', 'box'
+      content,
+      collected: false,
+      opened: false,
+    });
+  }
+
+  document.getElementById('book-total').textContent = BOOKS.length;
+  updateHud();
+}
+
+// ===================== PLAYER =====================
+let player = { x: 18, y: 6, dir: 2, moving: false, frame: 0, frameTimer: 0, dead: false, deadTimer: 0, respawnX: 18, respawnY: 6 };
+const keysDown = {};
+let bloodSplatters = []; // permanent blood marks on map {x, y, spots: [{dx,dy,r}]}
+
+// ===================== CANVAS =====================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W, H, camX = 0, camY = 0;
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// ===================== TILE COLORS =====================
+const TILE_COLORS = {
+  [T.VOID]: '#7ab06e',
+  [T.FLOOR]: '#d4c9b0',
+  [T.WALL]: '#7a6e5a',
+  [T.WALL_TOP]: '#6b5f4b',
+  [T.RUG]: '#a0687a',
+  [T.WOOD]: '#c4a97d',
+  [T.GRASS]: '#7ab06e',
+  [T.PATH]: '#c9b896',
+  [T.WATER]: '#5b9bd5',
+};
+
+const SOLID_TILES = new Set([T.VOID, T.WALL, T.WALL_TOP, T.WATER]);
+
+// ===================== COLLISION =====================
+function isSolid(tx, ty) {
+  if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) return true;
+  if (SOLID_TILES.has(map[ty][tx])) return true;
+  // Furniture collision
+  for (const f of furniture) {
+    if (tx >= f.x && tx < f.x + f.w && ty >= f.y && ty < f.y + f.h) return true;
+  }
+  return false;
+}
+
+// ===================== IMAGE PRELOAD =====================
+function preloadImages() {
+  BOOKS.forEach((b, i) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { images[i] = img; };
+    img.src = b.c;
+  });
+}
+
+// ===================== UPDATE =====================
+function update() {
+  if (phase !== 'playing') return;
+  if (player.dead) { player.deadTimer++; player.moving = false; return; }
+
+  let dx = 0, dy = 0;
+  if (keysDown['ArrowUp'] || keysDown['w'] || keysDown['W']) { dy = -1; player.dir = 0; }
+  else if (keysDown['ArrowDown'] || keysDown['s'] || keysDown['S']) { dy = 1; player.dir = 2; }
+  else if (keysDown['ArrowLeft'] || keysDown['a'] || keysDown['A']) { dx = -1; player.dir = 3; }
+  else if (keysDown['ArrowRight'] || keysDown['d'] || keysDown['D']) { dx = 1; player.dir = 1; }
+
+  player.moving = dx !== 0 || dy !== 0;
+
+  if (player.moving) {
+    const nx = player.x + dx;
+    const ny = player.y + dy;
+    if (!isSolid(nx, ny)) {
+      player.x = nx;
+      player.y = ny;
+    }
+    player.frameTimer++;
+    if (player.frameTimer >= 8) {
+      player.frameTimer = 0;
+      player.frame = (player.frame + 1) % 4;
+    }
+  } else {
+    player.frame = 0;
+    player.frameTimer = 0;
+  }
+
+  // Check proximity to objects
+  updatePrompt();
+
+  // Update explosions
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    explosions[i].frame++;
+    if (explosions[i].frame > explosions[i].maxFrames) explosions.splice(i, 1);
+  }
+}
+
+// ===================== PROMPT =====================
+let nearObject = null;
+
+function updatePrompt() {
+  const bar = document.getElementById('prompt-bar');
+  nearObject = null;
+
+  for (const obj of objects) {
+    if (obj.collected || obj.opened) continue;
+    const dist = Math.abs(player.x - obj.x) + Math.abs(player.y - obj.y);
+    if (dist <= 1) {
+      nearObject = obj;
+      break;
+    }
+  }
+
+  if (nearObject) {
+    if (nearObject.vis === 'box') bar.textContent = 'Press Space to open box';
+    else if (nearObject.vis === 'shelf') bar.textContent = 'Press Space to pick up book';
+    else bar.textContent = 'Press Space to collect book';
+    bar.classList.add('visible');
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+// ===================== INTERACT =====================
+function interact() {
+  if (!nearObject || phase !== 'playing' || player.dead) return;
+  const obj = nearObject;
+
+  if (obj.vis === 'box' && !obj.opened) {
+    obj.opened = true;
+    const c = obj.content;
+    if (c.type === 'bomb') {
+      explosions.push({ x: obj.x, y: obj.y, frame: 0, maxFrames: 50 });
+      showToast('BOOM! You died!', 'bomb');
+      obj.collected = true;
+
+      // Kill the player
+      player.dead = true;
+      player.deadTimer = 0;
+
+      // Blood splatter at player position
+      const spots = [];
+      for (let i = 0; i < 15; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 28 + 5;
+        spots.push({
+          dx: Math.cos(angle) * dist,
+          dy: Math.sin(angle) * dist,
+          r: Math.random() * 5 + 2,
+        });
+      }
+      bloodSplatters.push({ x: player.x, y: player.y, spots });
+
+      // Respawn after delay
+      setTimeout(() => {
+        player.dead = false;
+        player.x = player.respawnX;
+        player.y = player.respawnY;
+        showToast('Respawned...', '');
+      }, 2000);
+    } else if (c.type === 'rick') {
+      showToast('You just got Rickrolled!', 'rick');
+      obj.collected = true;
+      setTimeout(() => window.open(RICK_URL, '_blank'), 600);
+    } else if (c.type === 'book') {
+      collectBook(obj, c.bookIdx);
+    }
+  } else if (obj.content.type === 'book' && !obj.collected) {
+    collectBook(obj, obj.content.bookIdx);
+  }
+
+  nearObject = null;
+  updatePrompt();
+}
+
+function collectBook(obj, bookIdx) {
+  obj.collected = true;
+  collectedBooks.push(bookIdx);
+  showToast('+ ' + BOOKS[bookIdx].t);
+  updateHud();
+
+  // Check victory
+  const totalBooks = objects.filter(o => o.content.type === 'book').length;
+  const found = collectedBooks.length;
+  if (found >= totalBooks) {
+    phase = 'victory';
+    setTimeout(() => document.getElementById('victory-bar').classList.add('visible'), 800);
+  }
+}
+
+function updateHud() {
+  document.getElementById('book-count').textContent = collectedBooks.length;
+}
+
+// ===================== TOAST =====================
+function showToast(text, cls = '') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast' + (cls ? ' ' + cls : '');
+  toast.textContent = text;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 2000);
+}
+
+// ===================== FURNITURE SPRITES =====================
+function drawFurniture(f, time) {
+  const T = TILE;
+  const fx = f.x * T;
+  const fy = f.y * T;
+
+  // Shadow under all furniture
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  const fw = f.w * T, fh = f.h * T;
+  ctx.beginPath();
+  ctx.ellipse(fx + fw/2, fy + fh + 2, fw/2 - 2, 5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  switch (f.label) {
+    case 'Tree': drawTree(fx, fy, f.w * T, f.h * T, time, f.x); break;
+    case 'Couch': drawCouch(fx, fy, f.w * T, f.h * T); break;
+    case 'TV': drawTV(fx, fy, f.w * T, f.h * T, time); break;
+    case 'Coffee Table': drawCoffeeTable(fx, fy, f.w * T, f.h * T); break;
+    case 'Counter': drawCounter(fx, fy, f.w * T, f.h * T); break;
+    case 'Stove': drawStove(fx, fy, f.w * T, f.h * T, time); break;
+    case 'Dining Table': drawDiningTable(fx, fy, f.w * T, f.h * T); break;
+    case 'Bed': drawBed(fx, fy, f.w * T, f.h * T); break;
+    case 'Nightstand': drawNightstand(fx, fy, f.w * T, f.h * T); break;
+    case 'Wardrobe': drawWardrobe(fx, fy, f.w * T, f.h * T); break;
+    case 'Desk': drawDesk(fx, fy, f.w * T, f.h * T); break;
+    case 'Bookshelf': drawBookshelf(fx, fy, f.w * T, f.h * T); break;
+    case 'Plant': drawPlant(fx, fy, f.w * T, f.h * T, time); break;
+    default:
+      ctx.fillStyle = f.color;
+      ctx.fillRect(fx, fy, fw, fh);
+  }
+}
+
+function drawTree(x, y, w, h, time, seed) {
+  const cx = x + w / 2;
+  const sway = Math.sin(time * 0.001 + seed * 2) * 2;
+
+  // Trunk
+  ctx.fillStyle = '#6b4e3a';
+  ctx.fillRect(cx - 6, y + h * 0.5, 12, h * 0.5);
+  // Bark detail
+  ctx.fillStyle = '#5a3f2e';
+  ctx.fillRect(cx - 2, y + h * 0.55, 3, 8);
+  ctx.fillRect(cx + 2, y + h * 0.7, 2, 6);
+
+  // Canopy layers (bottom to top, larger to smaller)
+  const layers = [
+    { oy: 0.45, rx: w * 0.48, ry: h * 0.22, color: '#3d7a3a' },
+    { oy: 0.3, rx: w * 0.42, ry: h * 0.2, color: '#4a9245' },
+    { oy: 0.15, rx: w * 0.34, ry: h * 0.18, color: '#5aaa52' },
+    { oy: 0.05, rx: w * 0.22, ry: h * 0.14, color: '#68bb5e' },
+  ];
+  for (const l of layers) {
+    ctx.fillStyle = l.color;
+    ctx.beginPath();
+    ctx.ellipse(cx + sway * l.oy, y + h * l.oy, l.rx, l.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Highlight spots
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath();
+  ctx.ellipse(cx - 8 + sway * 0.3, y + h * 0.2, 6, 4, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCouch(x, y, w, h) {
+  const pad = 4;
+  // Back rest
+  ctx.fillStyle = '#6b5080';
+  ctx.fillRect(x + pad, y + pad, w - pad*2, 12);
+  ctx.fillStyle = '#7a5e92';
+  ctx.fillRect(x + pad + 2, y + pad + 2, w - pad*2 - 4, 8);
+
+  // Seat
+  ctx.fillStyle = '#8266a0';
+  ctx.fillRect(x + pad, y + 16, w - pad*2, h - 20);
+  // Cushion lines
+  ctx.fillStyle = '#755890';
+  const cushionW = (w - pad*2) / 3;
+  for (let i = 1; i < 3; i++) {
+    ctx.fillRect(x + pad + cushionW * i - 1, y + 18, 2, h - 24);
+  }
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.fillRect(x + pad + 4, y + 18, cushionW - 8, 4);
+
+  // Arms
+  ctx.fillStyle = '#5d4570';
+  ctx.fillRect(x + 1, y + pad, pad + 1, h - pad - 2);
+  ctx.fillRect(x + w - pad - 2, y + pad, pad + 1, h - pad - 2);
+}
+
+function drawTV(x, y, w, h, time) {
+  // TV stand
+  ctx.fillStyle = '#4a4a5a';
+  ctx.fillRect(x + w/2 - 10, y + h - 10, 20, 10);
+  ctx.fillRect(x + w/2 - 4, y + h - 14, 8, 6);
+
+  // Screen frame
+  ctx.fillStyle = '#2a2a35';
+  ctx.fillRect(x + 6, y + 4, w - 12, h - 18);
+  // Screen
+  const flicker = Math.sin(time * 0.01) * 0.05;
+  ctx.fillStyle = `rgba(60,80,140,${0.7 + flicker})`;
+  ctx.fillRect(x + 8, y + 6, w - 16, h - 22);
+  // Screen glare
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(x + 10, y + 8, (w - 20) * 0.4, (h - 26) * 0.3);
+  // Power LED
+  ctx.fillStyle = '#4aff4a';
+  ctx.fillRect(x + w - 14, y + h - 16, 3, 2);
+}
+
+function drawCoffeeTable(x, y, w, h) {
+  // Legs
+  ctx.fillStyle = '#6b5030';
+  ctx.fillRect(x + 4, y + h - 4, 4, 4);
+  ctx.fillRect(x + w - 8, y + h - 4, 4, 4);
+  // Table top
+  ctx.fillStyle = '#a0845c';
+  ctx.fillRect(x + 2, y + 2, w - 4, h - 6);
+  // Wood grain
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  ctx.fillRect(x + 6, y + 4, w - 16, 2);
+  ctx.fillRect(x + 10, y + h - 10, w - 20, 2);
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x + 4, y + 2, w - 8, 3);
+}
+
+function drawCounter(x, y, w, h) {
+  // Base
+  ctx.fillStyle = '#5a5a6a';
+  ctx.fillRect(x + 2, y + 4, w - 4, h - 4);
+  // Counter top
+  ctx.fillStyle = '#9ca0a8';
+  ctx.fillRect(x, y, w, 8);
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(x + 2, y + 1, w - 4, 3);
+  // Cabinet doors
+  ctx.fillStyle = '#4e5060';
+  const doorW = (w - 8) / 4;
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(x + 4 + i * (doorW + 1), y + 10, doorW, h - 16);
+    // Handle
+    ctx.fillStyle = '#888';
+    ctx.fillRect(x + 4 + i * (doorW + 1) + doorW/2 - 2, y + 16, 4, 2);
+    ctx.fillStyle = '#4e5060';
+  }
+}
+
+function drawStove(x, y, w, h) {
+  // Body
+  ctx.fillStyle = '#606068';
+  ctx.fillRect(x + 2, y + 2, w - 4, h - 2);
+  // Top surface
+  ctx.fillStyle = '#3a3a42';
+  ctx.fillRect(x, y, w, 6);
+  // Burners
+  ctx.fillStyle = '#2a2a30';
+  ctx.beginPath(); ctx.arc(x + w * 0.3, y + 3, 6, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + w * 0.7, y + 3, 6, 0, Math.PI*2); ctx.fill();
+  // Burner rings
+  ctx.strokeStyle = '#4a4a55';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(x + w * 0.3, y + 3, 4, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + w * 0.7, y + 3, 4, 0, Math.PI*2); ctx.stroke();
+  // Oven door
+  ctx.fillStyle = '#50505a';
+  ctx.fillRect(x + 6, y + 12, w - 12, h - 16);
+  ctx.fillStyle = 'rgba(80,80,100,0.5)';
+  ctx.fillRect(x + 8, y + 14, w - 16, h - 22);
+  // Handle
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(x + 10, y + 12, w - 20, 2);
+}
+
+function drawDiningTable(x, y, w, h) {
+  // Legs
+  ctx.fillStyle = '#6b5030';
+  [4, w-8].forEach(lx => [4, h-8].forEach(ly => {
+    ctx.fillRect(x + lx, y + ly, 4, 4);
+  }));
+  // Table top
+  ctx.fillStyle = '#b8956a';
+  ctx.fillRect(x, y, w, h - 2);
+  // Wood grain lines
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(x + 8, y + 6 + i * 14, w - 16, 1.5);
+  }
+  // Edge highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x + 2, y, w - 4, 3);
+  // Tablecloth center hint
+  ctx.fillStyle = 'rgba(180,100,100,0.15)';
+  ctx.fillRect(x + w/2 - 12, y + 4, 24, h - 10);
+}
+
+function drawBed(x, y, w, h) {
+  // Frame
+  ctx.fillStyle = '#6b5040';
+  ctx.fillRect(x + 2, y + 2, w - 4, h - 2);
+
+  // Mattress
+  ctx.fillStyle = '#e8ddd0';
+  ctx.fillRect(x + 4, y + 4, w - 8, h - 8);
+
+  // Pillow
+  ctx.fillStyle = '#f0ebe4';
+  ctx.fillRect(x + 8, y + 6, w - 16, 18);
+  // Pillow puff
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(x + 12, y + 9, (w-16)/2 - 6, 12);
+  ctx.fillRect(x + w/2 + 2, y + 9, (w-16)/2 - 6, 12);
+
+  // Blanket
+  ctx.fillStyle = '#7c6ea0';
+  ctx.fillRect(x + 4, y + 26, w - 8, h - 34);
+  // Blanket fold
+  ctx.fillStyle = '#8a7cb0';
+  ctx.fillRect(x + 4, y + 26, w - 8, 6);
+  // Pattern on blanket
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(x + 10, y + 36 + i * 16, w - 20, 2);
+  }
+
+  // Headboard
+  ctx.fillStyle = '#5a4030';
+  ctx.fillRect(x + 2, y, w - 4, 6);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(x + 4, y + 1, w - 8, 2);
+}
+
+function drawNightstand(x, y, w, h) {
+  // Body
+  ctx.fillStyle = '#8a7050';
+  ctx.fillRect(x + 2, y + 2, w - 4, h - 2);
+  // Top
+  ctx.fillStyle = '#a08660';
+  ctx.fillRect(x, y, w, 4);
+  // Drawer
+  ctx.fillStyle = '#7a6040';
+  ctx.fillRect(x + 5, y + 10, w - 10, h - 14);
+  // Drawer knob
+  ctx.fillStyle = '#c0a880';
+  ctx.fillRect(x + w/2 - 2, y + h/2 + 2, 4, 3);
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.fillRect(x + 2, y, w - 4, 2);
+  // Lamp on top
+  ctx.fillStyle = '#d4c090';
+  ctx.fillRect(x + w/2 - 3, y - 8, 6, 8);
+  ctx.fillStyle = '#f0e8c0';
+  ctx.beginPath();
+  ctx.moveTo(x + w/2 - 8, y - 8);
+  ctx.lineTo(x + w/2 + 8, y - 8);
+  ctx.lineTo(x + w/2 + 5, y - 18);
+  ctx.lineTo(x + w/2 - 5, y - 18);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,200,0.15)';
+  ctx.beginPath();
+  ctx.arc(x + w/2, y - 10, 14, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawWardrobe(x, y, w, h) {
+  // Body
+  ctx.fillStyle = '#7a6545';
+  ctx.fillRect(x + 1, y + 1, w - 2, h - 1);
+  // Doors
+  const doorW = (w - 6) / 2;
+  ctx.fillStyle = '#8a7555';
+  ctx.fillRect(x + 2, y + 4, doorW, h - 8);
+  ctx.fillRect(x + w/2 + 1, y + 4, doorW, h - 8);
+  // Door line
+  ctx.fillStyle = '#6a5535';
+  ctx.fillRect(x + w/2 - 1, y + 4, 2, h - 8);
+  // Handles
+  ctx.fillStyle = '#c0a870';
+  ctx.fillRect(x + w/2 - 4, y + h/2, 3, 6);
+  ctx.fillRect(x + w/2 + 1, y + h/2, 3, 6);
+  // Top molding
+  ctx.fillStyle = '#6a5535';
+  ctx.fillRect(x, y, w, 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(x + 2, y + 1, w - 4, 1);
+}
+
+function drawDesk(x, y, w, h) {
+  // Legs
+  ctx.fillStyle = '#5a4530';
+  ctx.fillRect(x + 4, y + h - 6, 4, 6);
+  ctx.fillRect(x + w - 8, y + h - 6, 4, 6);
+
+  // Desktop
+  ctx.fillStyle = '#9a7e55';
+  ctx.fillRect(x, y, w, h - 4);
+  // Wood grain
+  ctx.fillStyle = 'rgba(0,0,0,0.05)';
+  ctx.fillRect(x + 6, y + 4, w - 12, 1.5);
+  ctx.fillRect(x + 10, y + 12, w - 20, 1.5);
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.fillRect(x + 2, y, w - 4, 3);
+
+  // Laptop on desk
+  ctx.fillStyle = '#3a3a42';
+  ctx.fillRect(x + w/2 - 12, y + 6, 24, 16);
+  ctx.fillStyle = '#4a6a9a';
+  ctx.fillRect(x + w/2 - 10, y + 8, 20, 12);
+  // Keyboard base
+  ctx.fillStyle = '#444';
+  ctx.fillRect(x + w/2 - 14, y + 22, 28, 4);
+}
+
+function drawBookshelf(x, y, w, h) {
+  // Frame
+  ctx.fillStyle = '#6a5540';
+  ctx.fillRect(x, y, w, h);
+
+  // Shelves (horizontal)
+  const shelfCount = 4;
+  const shelfH = h / shelfCount;
+  for (let i = 0; i < shelfCount; i++) {
+    const sy = y + i * shelfH;
+    // Shelf plank
+    ctx.fillStyle = '#7a6550';
+    ctx.fillRect(x + 2, sy + shelfH - 3, w - 4, 3);
+
+    // Books on shelf
+    const bookColors = ['#c44', '#48a', '#5a5', '#c84', '#84c', '#4aa', '#a55', '#8a4'];
+    let bx = x + 3;
+    const booksOnShelf = 3 + ((i * 3 + x) % 2);
+    for (let j = 0; j < booksOnShelf && bx < x + w - 6; j++) {
+      const bw = 4 + (((i + j) * 7) % 3);
+      const bh = shelfH - 6 - ((i + j) % 3) * 2;
+      const color = bookColors[(i * 3 + j) % bookColors.length];
+      ctx.fillStyle = color;
+      ctx.fillRect(bx, sy + shelfH - 3 - bh, bw, bh);
+      // Spine highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillRect(bx, sy + shelfH - 3 - bh, 1.5, bh);
+      bx += bw + 1;
+    }
+  }
+
+  // Frame edges
+  ctx.fillStyle = '#5a4530';
+  ctx.fillRect(x, y, 2, h);
+  ctx.fillRect(x + w - 2, y, 2, h);
+  ctx.fillRect(x, y, w, 2);
+}
+
+function drawPlant(x, y, w, h, time) {
+  const cx = x + w / 2;
+  const by = y + h;
+
+  // Pot
+  ctx.fillStyle = '#b06840';
+  ctx.beginPath();
+  ctx.moveTo(cx - 14, by - 18);
+  ctx.lineTo(cx + 14, by - 18);
+  ctx.lineTo(cx + 10, by - 2);
+  ctx.lineTo(cx - 10, by - 2);
+  ctx.closePath();
+  ctx.fill();
+  // Pot rim
+  ctx.fillStyle = '#c07848';
+  ctx.fillRect(cx - 16, by - 20, 32, 4);
+  // Dirt
+  ctx.fillStyle = '#5a4030';
+  ctx.beginPath();
+  ctx.ellipse(cx, by - 18, 12, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Leaves
+  const sway = Math.sin(time * 0.0015) * 3;
+  const leaves = [
+    { angle: -0.8, len: 22, color: '#4a9a45' },
+    { angle: -0.3, len: 28, color: '#3d8a3a' },
+    { angle: 0.2, len: 26, color: '#4a9a45' },
+    { angle: 0.7, len: 20, color: '#5aaa52' },
+    { angle: -1.2, len: 16, color: '#5aaa52' },
+    { angle: 1.1, len: 18, color: '#3d8a3a' },
+  ];
+
+  for (const l of leaves) {
+    const lx = cx + Math.sin(l.angle + sway * 0.03) * l.len;
+    const ly = by - 22 + Math.cos(l.angle) * l.len * -0.7;
+    ctx.fillStyle = l.color;
+    ctx.beginPath();
+    ctx.ellipse(
+      (cx + lx) / 2 + sway * 0.4,
+      (by - 22 + ly) / 2,
+      l.len * 0.45, 5,
+      l.angle + sway * 0.02,
+      0, Math.PI * 2
+    );
+    ctx.fill();
+  }
+}
+
+// ===================== DRAW =====================
+function draw(time) {
+  // Fill background with grass color so no dark strips at edges
+  ctx.fillStyle = '#7ab06e';
+  ctx.fillRect(0, 0, W, H);
+
+  // Camera follows player
+  const targetCamX = player.x * TILE + TILE / 2 - W / 2;
+  const targetCamY = player.y * TILE + TILE / 2 - H / 2;
+  camX += (targetCamX - camX) * 0.1;
+  camY += (targetCamY - camY) * 0.1;
+
+  // Clamp camera
+  const mapW = COLS * TILE;
+  const mapH = ROWS * TILE;
+  camX = Math.max(0, Math.min(mapW - W, camX));
+  camY = Math.max(0, Math.min(mapH - H, camY));
+
+  ctx.save();
+  ctx.translate(-camX, -camY);
+
+  // Draw tiles
+  const startCol = Math.max(0, Math.floor(camX / TILE));
+  const endCol = Math.min(COLS, Math.ceil((camX + W) / TILE) + 1);
+  const startRow = Math.max(0, Math.floor(camY / TILE));
+  const endRow = Math.min(ROWS, Math.ceil((camY + H) / TILE) + 1);
+
+  for (let y = startRow; y < endRow; y++) {
+    for (let x = startCol; x < endCol; x++) {
+      const tile = map[y][x];
+      ctx.fillStyle = TILE_COLORS[tile] || '#333';
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+
+      const tx = x * TILE;
+      const ty = y * TILE;
+
+      if (tile === T.GRASS) {
+        // Grass blades
+        const seed = x * 7 + y * 13;
+        ctx.fillStyle = '#6da062';
+        if (seed % 4 === 0) {
+          ctx.fillRect(tx + 6, ty + 8, 2, 7);
+          ctx.fillRect(tx + 8, ty + 6, 2, 9);
+        }
+        if (seed % 5 === 0) {
+          ctx.fillRect(tx + 20, ty + 12, 2, 6);
+          ctx.fillRect(tx + 22, ty + 10, 2, 8);
+        }
+        if (seed % 7 === 0) {
+          // Flower
+          const flowerColors = ['#e8a0a0','#e8d080','#a0c0e8','#e0b0e0'];
+          ctx.fillStyle = flowerColors[seed % 4];
+          ctx.beginPath();
+          ctx.arc(tx + 14, ty + 18, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#5a8a52';
+          ctx.fillRect(tx + 13, ty + 20, 2, 6);
+        }
+        // Subtle variation
+        ctx.fillStyle = `rgba(0,0,0,${0.02 + (seed % 3) * 0.01})`;
+        ctx.fillRect(tx, ty, TILE, TILE);
+      } else if (tile === T.WATER) {
+        // Animated water
+        const shimmer1 = Math.sin(time * 0.002 + x * 0.7 + y * 0.5);
+        const shimmer2 = Math.sin(time * 0.003 + x * 1.2 + y * 0.8);
+        ctx.fillStyle = `rgba(100,180,230,${0.12 + shimmer1 * 0.06})`;
+        ctx.fillRect(tx, ty, TILE, TILE);
+        // Wave lines
+        ctx.strokeStyle = `rgba(255,255,255,${0.08 + shimmer2 * 0.04})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tx + 4, ty + 10 + shimmer1 * 2);
+        ctx.quadraticCurveTo(tx + 16, ty + 8 + shimmer2 * 3, tx + 28, ty + 10 + shimmer1 * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tx + 2, ty + 22 + shimmer2 * 2);
+        ctx.quadraticCurveTo(tx + 14, ty + 20 + shimmer1 * 3, tx + 28, ty + 22 + shimmer2 * 2);
+        ctx.stroke();
+      } else if (tile === T.WALL_TOP) {
+        // Brick-like wall top
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(tx, ty, TILE, 3);
+        // Brick lines
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillRect(tx, ty + TILE/2, TILE, 1);
+        if ((x + y) % 2 === 0) ctx.fillRect(tx + TILE/2, ty, 1, TILE);
+        else { ctx.fillRect(tx + TILE/4, ty, 1, TILE/2); ctx.fillRect(tx + TILE*3/4, ty + TILE/2, 1, TILE/2); }
+      } else if (tile === T.WALL) {
+        // Brick pattern on walls
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        ctx.fillRect(tx, ty + TILE/2, TILE, 1);
+        if ((x + y) % 2 === 0) ctx.fillRect(tx + TILE/2, ty, 1, TILE);
+        else { ctx.fillRect(tx + TILE/4, ty, 1, TILE/2); ctx.fillRect(tx + TILE*3/4, ty + TILE/2, 1, TILE/2); }
+        // Inner shadow at top
+        ctx.fillStyle = 'rgba(0,0,0,0.05)';
+        ctx.fillRect(tx, ty, TILE, 4);
+      } else if (tile === T.RUG) {
+        // Decorative rug with pattern
+        const isEdgeX = map[y]?.[x-1] !== T.RUG || map[y]?.[x+1] !== T.RUG;
+        const isEdgeY = map[y-1]?.[x] !== T.RUG || map[y+1]?.[x] !== T.RUG;
+        if (isEdgeX || isEdgeY) {
+          // Border stripe
+          ctx.fillStyle = 'rgba(200,160,100,0.2)';
+          ctx.fillRect(tx + 1, ty + 1, TILE - 2, TILE - 2);
+        }
+        // Diamond pattern
+        if ((x + y) % 2 === 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.06)';
+          ctx.beginPath();
+          ctx.moveTo(tx + TILE/2, ty + 4);
+          ctx.lineTo(tx + TILE - 4, ty + TILE/2);
+          ctx.lineTo(tx + TILE/2, ty + TILE - 4);
+          ctx.lineTo(tx + 4, ty + TILE/2);
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else if (tile === T.WOOD) {
+        // Wood plank lines
+        ctx.fillStyle = 'rgba(0,0,0,0.04)';
+        ctx.fillRect(tx, ty + 6, TILE, 1);
+        ctx.fillRect(tx, ty + 20, TILE, 1);
+        if ((x % 2) === 0) ctx.fillRect(tx + TILE/2, ty, 1, TILE);
+        // Knot
+        if ((x * 3 + y * 7) % 11 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.06)';
+          ctx.beginPath();
+          ctx.ellipse(tx + 18, ty + 14, 3, 2, 0.3, 0, Math.PI*2);
+          ctx.fill();
+        }
+      } else if (tile === T.FLOOR) {
+        // Tile floor pattern
+        ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(tx + 1, ty + 1, TILE - 2, TILE - 2);
+        // Slight variation
+        if ((x + y) % 2 === 0) {
+          ctx.fillStyle = 'rgba(0,0,0,0.015)';
+          ctx.fillRect(tx, ty, TILE, TILE);
+        }
+      } else if (tile === T.PATH) {
+        // Cobblestone path
+        ctx.fillStyle = 'rgba(0,0,0,0.05)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+        ctx.lineWidth = 0.5;
+        // Random stone shapes
+        const s = x * 11 + y * 17;
+        ctx.strokeRect(tx + 2, ty + 2, 12, 12);
+        ctx.strokeRect(tx + 16, ty + 4, 14, 10);
+        ctx.strokeRect(tx + 4, ty + 16, 10, 14);
+        ctx.strokeRect(tx + 18, ty + 18, 12, 12);
+      }
+    }
+  }
+
+  // Draw furniture with pixel art sprites
+  for (const f of furniture) {
+    drawFurniture(f, time);
+  }
+
+  // Draw objects
+  for (const obj of objects) {
+    if (obj.collected) continue;
+    const ox = obj.x * TILE;
+    const oy = obj.y * TILE;
+
+    if (obj.vis === 'box' && !obj.opened) {
+      // Mystery box with proper cardboard look
+      const bob = Math.sin(time * 0.003 + obj.x + obj.y) * 2;
+      const bx = ox + 3;
+      const by = oy + 2 + bob;
+      const bw = TILE - 6;
+      const bh = TILE - 6;
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath();
+      ctx.ellipse(ox + TILE/2, oy + TILE - 1, 12, 3, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      // Box body
+      ctx.fillStyle = '#c9956b';
+      ctx.fillRect(bx, by, bw, bh);
+      // Darker side panel
+      ctx.fillStyle = '#b08050';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = '#c9956b';
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+
+      // Lid (top flaps)
+      ctx.fillStyle = '#d4a478';
+      ctx.beginPath();
+      ctx.moveTo(bx - 2, by);
+      ctx.lineTo(bx + bw/2, by - 6);
+      ctx.lineTo(bx + bw + 2, by);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#c9956b';
+      ctx.fillRect(bx, by, bw, 3);
+
+      // Tape
+      ctx.fillStyle = 'rgba(200,180,140,0.6)';
+      ctx.fillRect(bx + bw/2 - 4, by - 3, 8, bh/2 + 3);
+
+      // Question mark with glow
+      ctx.fillStyle = 'rgba(255,255,200,0.4)';
+      ctx.beginPath();
+      ctx.arc(ox + TILE/2, by + bh/2 + 2, 10, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#5a3a1a';
+      ctx.font = 'bold 16px "DM Sans"';
+      ctx.textAlign = 'center';
+      ctx.fillText('?', ox + TILE/2, by + bh/2 + 7);
+      ctx.textAlign = 'left';
+    } else if (obj.vis === 'box' && obj.opened && !obj.collected) {
+      // Opened empty box - flaps open
+      const bx = ox + 3, by = oy + 6;
+      const bw = TILE - 6, bh = TILE - 10;
+      ctx.fillStyle = '#a07048';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = '#8a5e38';
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      // Open flaps
+      ctx.fillStyle = '#c9956b';
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx - 4, by - 8);
+      ctx.lineTo(bx + bw/2 - 2, by - 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx + bw, by);
+      ctx.lineTo(bx + bw + 4, by - 8);
+      ctx.lineTo(bx + bw/2 + 2, by - 2);
+      ctx.closePath();
+      ctx.fill();
+    } else if (obj.vis === 'shelf' || obj.vis === 'book') {
+      // Visible book with proper shape
+      const bob = Math.sin(time * 0.002 + obj.x * 3 + obj.y * 5) * 1.5;
+      const bw = 20;
+      const bh = 28;
+      const bx = ox + (TILE - bw) / 2;
+      const by = oy + (TILE - bh) / 2 + bob;
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(ox + TILE/2, oy + TILE - 2 + bob, 12, 3, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      // Glow around collectible book
+      ctx.fillStyle = 'rgba(255,240,180,0.15)';
+      ctx.beginPath();
+      ctx.arc(ox + TILE/2, oy + TILE/2 + bob, 18, 0, Math.PI*2);
+      ctx.fill();
+
+      // Book cover
+      const img = images[obj.content.bookIdx];
+      if (img) {
+        // Pages (white edge)
+        ctx.fillStyle = '#f5f0e8';
+        ctx.fillRect(bx + 1, by + 2, bw, bh - 2);
+        // Cover
+        ctx.drawImage(img, bx, by, bw, bh);
+      } else {
+        ctx.fillStyle = '#5c7c9c';
+        ctx.fillRect(bx, by, bw, bh);
+      }
+      // Spine shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(bx, by, 2.5, bh);
+      // Top highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillRect(bx + 3, by, bw - 4, 2);
+    }
+  }
+
+  // Draw explosions
+  for (const exp of explosions) {
+    const ex = exp.x * TILE + TILE / 2;
+    const ey = exp.y * TILE + TILE / 2;
+    const progress = exp.frame / exp.maxFrames;
+    const radius = 30 + progress * 40;
+    const alpha = 1 - progress;
+
+    // Outer
+    ctx.beginPath();
+    ctx.arc(ex, ey, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 120, 30, ${alpha * 0.4})`;
+    ctx.fill();
+    // Inner
+    ctx.beginPath();
+    ctx.arc(ex, ey, radius * 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 220, 80, ${alpha * 0.6})`;
+    ctx.fill();
+    // Core flash
+    if (progress < 0.2) {
+      ctx.beginPath();
+      ctx.arc(ex, ey, radius * 0.2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${(1 - progress / 0.2) * 0.8})`;
+      ctx.fill();
+    }
+  }
+
+  // Draw blood splatters (permanent)
+  for (const blood of bloodSplatters) {
+    const bx = blood.x * TILE + TILE / 2;
+    const by = blood.y * TILE + TILE / 2;
+    for (const s of blood.spots) {
+      ctx.fillStyle = `rgba(180,20,20,${0.5 + Math.random() * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(bx + s.dx, by + s.dy, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Central pool
+    ctx.fillStyle = 'rgba(140,15,15,0.6)';
+    ctx.beginPath();
+    ctx.ellipse(bx, by + 4, 10, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw player
+  if (player.dead) {
+    drawDeadPlayer(time);
+  } else {
+    drawPlayer(time);
+  }
+
+  ctx.restore();
+}
+
+// ===================== PLAYER SPRITE =====================
+function drawPlayer(time) {
+  const px = player.x * TILE;
+  const py = player.y * TILE;
+  const cx = px + TILE / 2;
+
+  const walkBob = player.moving ? Math.sin(player.frame * Math.PI / 2) * 1.5 : 0;
+  const legSwing = player.moving ? Math.sin(player.frame * Math.PI / 2) * 3.5 : 0;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(cx, py + TILE - 1, 11, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // --- LEGS ---
+  ctx.fillStyle = '#3b5998';
+  // Left leg
+  ctx.fillRect(cx - 5 - legSwing, py + 22 + walkBob, 5, 7);
+  // Right leg
+  ctx.fillRect(cx + legSwing, py + 22 + walkBob, 5, 7);
+  // Shoes
+  ctx.fillStyle = '#f5f0e8';
+  ctx.fillRect(cx - 6 - legSwing, py + 28 + walkBob, 6, 3);
+  ctx.fillRect(cx + legSwing, py + 28 + walkBob, 6, 3);
+  // Shoe stripe
+  ctx.fillStyle = '#e84040';
+  ctx.fillRect(cx - 5 - legSwing, py + 28 + walkBob, 4, 1);
+  ctx.fillRect(cx + 1 + legSwing, py + 28 + walkBob, 4, 1);
+
+  // --- BODY (t-shirt) ---
+  ctx.fillStyle = '#4a90d9';
+  // Torso
+  ctx.fillRect(cx - 7, py + 10 + walkBob, 14, 13);
+  // Collar
+  ctx.fillStyle = '#3a7ac0';
+  ctx.fillRect(cx - 4, py + 10 + walkBob, 8, 2);
+  // Shirt detail - pocket
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(cx + 2, py + 14 + walkBob, 4, 4);
+
+  // --- ARMS ---
+  const armSwing = player.moving ? Math.sin(player.frame * Math.PI / 2) * 2 : 0;
+  ctx.fillStyle = '#f0d0a0';
+  // Left arm
+  ctx.fillRect(cx - 10, py + 12 + walkBob - armSwing, 4, 8);
+  // Right arm
+  ctx.fillRect(cx + 6, py + 12 + walkBob + armSwing, 4, 8);
+  // Sleeves
+  ctx.fillStyle = '#4a90d9';
+  ctx.fillRect(cx - 10, py + 11 + walkBob - armSwing, 4, 3);
+  ctx.fillRect(cx + 6, py + 11 + walkBob + armSwing, 4, 3);
+
+  // --- HEAD ---
+  // Neck
+  ctx.fillStyle = '#e8c498';
+  ctx.fillRect(cx - 2, py + 7 + walkBob, 4, 4);
+
+  // Head base
+  ctx.fillStyle = '#f0d0a0';
+  ctx.beginPath();
+  ctx.arc(cx, py + 5 + walkBob, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair
+  ctx.fillStyle = '#2a1a0a';
+  if (player.dir === 0) {
+    // Back of head - full hair
+    ctx.beginPath();
+    ctx.arc(cx, py + 4 + walkBob, 8, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Top hair
+    ctx.beginPath();
+    ctx.arc(cx, py + 3 + walkBob, 8, Math.PI + 0.3, Math.PI * 2 - 0.3);
+    ctx.fill();
+    // Side hair
+    if (player.dir === 3) { // left
+      ctx.fillRect(cx - 8, py + 0 + walkBob, 3, 8);
+    } else if (player.dir === 1) { // right
+      ctx.fillRect(cx + 5, py + 0 + walkBob, 3, 8);
+    } else {
+      ctx.fillRect(cx - 8, py + 0 + walkBob, 3, 6);
+      ctx.fillRect(cx + 5, py + 0 + walkBob, 3, 6);
+    }
+  }
+
+  // Face
+  if (player.dir !== 0) { // not facing away
+    // Eyes
+    ctx.fillStyle = '#fff';
+    const eyeY = py + 4 + walkBob;
+    let lx, rx;
+    if (player.dir === 3) { lx = cx - 5; rx = cx - 1; }
+    else if (player.dir === 1) { lx = cx + 1; rx = cx + 5; }
+    else { lx = cx - 4; rx = cx + 2; }
+
+    // Eye whites
+    ctx.fillRect(lx, eyeY, 3, 3);
+    ctx.fillRect(rx, eyeY, 3, 3);
+
+    // Pupils
+    ctx.fillStyle = '#1a1a2a';
+    if (player.dir === 3) { ctx.fillRect(lx, eyeY + 1, 2, 2); ctx.fillRect(rx, eyeY + 1, 2, 2); }
+    else if (player.dir === 1) { ctx.fillRect(lx + 1, eyeY + 1, 2, 2); ctx.fillRect(rx + 1, eyeY + 1, 2, 2); }
+    else { ctx.fillRect(lx + 0.5, eyeY + 1, 2, 2); ctx.fillRect(rx + 0.5, eyeY + 1, 2, 2); }
+
+    // Mouth (only facing down)
+    if (player.dir === 2) {
+      ctx.fillStyle = '#c09080';
+      ctx.fillRect(cx - 1.5, py + 8 + walkBob, 3, 1.5);
+    }
+
+    // Blush
+    ctx.fillStyle = 'rgba(220,150,140,0.25)';
+    if (player.dir === 2) {
+      ctx.beginPath(); ctx.arc(cx - 5, py + 7 + walkBob, 2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + 5, py + 7 + walkBob, 2, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  // Name tag with background
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  const nameW = 24;
+  ctx.fillRect(cx - nameW/2 - 4, py - 12, nameW + 8, 12);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 8px "DM Sans", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('You', cx, py - 3);
+  ctx.textAlign = 'left';
+}
+
+function drawDeadPlayer(time) {
+  const px = player.x * TILE;
+  const py = player.y * TILE;
+  const cx = px + TILE / 2;
+
+  // Flicker/fade effect
+  const alpha = 0.6 + Math.sin(player.deadTimer * 0.4) * 0.2;
+
+  ctx.globalAlpha = alpha;
+
+  // Body collapsed sideways on the ground
+  // Shadow pool (blood)
+  ctx.fillStyle = 'rgba(150,15,15,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(cx, py + TILE / 2 + 6, 14, 8, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Torso (sideways, rotated)
+  ctx.save();
+  ctx.translate(cx, py + TILE / 2);
+  ctx.rotate(Math.PI / 2 * 0.85); // Fallen over
+
+  // Body
+  ctx.fillStyle = '#4a90d9';
+  ctx.fillRect(-6, -10, 12, 16);
+
+  // Head
+  ctx.fillStyle = '#d4b88a';
+  ctx.beginPath();
+  ctx.arc(0, -14, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair
+  ctx.fillStyle = '#2a1a0a';
+  ctx.beginPath();
+  ctx.arc(0, -16, 7, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  // X eyes
+  ctx.strokeStyle = '#1a1a2a';
+  ctx.lineWidth = 1.5;
+  // Left X
+  ctx.beginPath(); ctx.moveTo(-4, -16); ctx.lineTo(-1, -13); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-1, -16); ctx.lineTo(-4, -13); ctx.stroke();
+  // Right X
+  ctx.beginPath(); ctx.moveTo(1, -16); ctx.lineTo(4, -13); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4, -16); ctx.lineTo(1, -13); ctx.stroke();
+
+  // Mouth (wavy dead line)
+  ctx.beginPath();
+  ctx.moveTo(-3, -10);
+  ctx.quadraticCurveTo(-1, -11, 0, -10);
+  ctx.quadraticCurveTo(1, -9, 3, -10);
+  ctx.stroke();
+
+  // Legs (limp)
+  ctx.fillStyle = '#3b5998';
+  ctx.fillRect(-4, 6, 4, 8);
+  ctx.fillRect(1, 5, 4, 9);
+
+  // Shoes
+  ctx.fillStyle = '#f5f0e8';
+  ctx.fillRect(-5, 13, 5, 3);
+  ctx.fillRect(1, 13, 5, 3);
+
+  // Arms (limp, splayed)
+  ctx.fillStyle = '#d4b88a';
+  ctx.fillRect(-10, -4, 5, 4);
+  ctx.fillRect(6, -8, 5, 4);
+
+  ctx.restore();
+
+  // "RIP" text floating above
+  ctx.fillStyle = 'rgba(200,30,30,0.7)';
+  ctx.font = 'bold 11px "DM Sans", sans-serif';
+  ctx.textAlign = 'center';
+  const floatY = Math.sin(player.deadTimer * 0.08) * 3;
+  ctx.fillText('RIP', cx, py - 8 + floatY);
+  ctx.textAlign = 'left';
+
+  ctx.globalAlpha = 1;
+}
+
+// ===================== GAME LOOP =====================
+let lastUpdateTime = 0;
+const UPDATE_INTERVAL = 100; // ms between movement ticks
+
+function gameLoop(time) {
+  requestAnimationFrame(gameLoop);
+
+  if (time - lastUpdateTime >= UPDATE_INTERVAL) {
+    lastUpdateTime = time;
+    update();
+  }
+
+  draw(time);
+}
+
+// ===================== INPUT =====================
+document.addEventListener('keydown', (e) => {
+  keysDown[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  if (e.key === ' ' || e.key === 'Enter') interact();
+});
+
+document.addEventListener('keyup', (e) => {
+  keysDown[e.key] = false;
+});
+
+// Mobile d-pad
+function dpadDown(dx, dy) {
+  if (dx === -1) keysDown['ArrowLeft'] = true;
+  if (dx === 1) keysDown['ArrowRight'] = true;
+  if (dy === -1) keysDown['ArrowUp'] = true;
+  if (dy === 1) keysDown['ArrowDown'] = true;
+}
+function dpadUp(dx, dy) {
+  if (dx === -1) keysDown['ArrowLeft'] = false;
+  if (dx === 1) keysDown['ArrowRight'] = false;
+  if (dy === -1) keysDown['ArrowUp'] = false;
+  if (dy === 1) keysDown['ArrowDown'] = false;
+}
+
+// ===================== OVERLAY =====================
+function showCollection() {
+  const overlay = document.getElementById('books-overlay');
+  const grid = document.getElementById('books-grid');
+  grid.innerHTML = collectedBooks.map((idx, i) => {
+    const b = BOOKS[idx];
+    return `<div class="book-card-o" style="transition-delay:${i * 35}ms">
+      <img src="${b.c}" alt="${b.t}">
+      <div class="title">${b.t}</div>
+      <div class="author">${b.a}</div>
+    </div>`;
+  }).join('');
+  overlay.classList.add('visible');
+  document.getElementById('close-overlay').style.display = 'flex';
+  requestAnimationFrame(() => grid.querySelectorAll('.book-card-o').forEach(c => c.classList.add('show')));
+}
+
+function closeOverlay() {
+  document.getElementById('books-overlay').classList.remove('visible');
+  document.getElementById('close-overlay').style.display = 'none';
+}
+
+function restartGame() {
+  document.getElementById('victory-bar').classList.remove('visible');
+  closeOverlay();
+  player = { x: 18, y: 6, dir: 2, moving: false, frame: 0, frameTimer: 0, dead: false, deadTimer: 0, respawnX: 18, respawnY: 6 };
+  bloodSplatters = [];
+  setupObjects();
+}
+
+// ===================== BOOT =====================
+window.addEventListener('resize', resize);
+resize();
+preloadImages();
+setupObjects();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
