@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Weather Sky</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:'DM Sans',sans-serif;user-select:none;background:#0a0a12}
+
+/* Sky layers */
+canvas#hdri-canvas{position:fixed;inset:0;z-index:0}
+canvas#stars-canvas{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity 1.5s ease}
+canvas#stars-canvas.visible{opacity:1}
+
+/* Moon */
+#moon{
+  position:fixed;z-index:1;pointer-events:none;
+  width:60px;height:60px;border-radius:50%;
+  background:radial-gradient(circle at 40% 40%,#f5f0e0 0%,#e8e0c8 40%,#d0c8a8 70%,transparent 100%);
+  box-shadow:0 0 40px 15px rgba(220,215,180,0.15),0 0 80px 30px rgba(200,195,160,0.08);
+  top:12%;right:18%;
+  opacity:0;transition:opacity 2s ease;
+}
+#moon.visible{opacity:1}
+
+/* Weather effects */
+.rain-container{position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden;opacity:0;transition:opacity .8s}
+.rain-container.active{opacity:1}
+.rain-drop{
+  position:absolute;width:1.5px;
+  background:linear-gradient(to bottom,transparent,rgba(180,200,230,0.4),rgba(160,185,220,0.15));
+  animation:rain-fall linear infinite;
+}
+@keyframes rain-fall{0%{transform:translateY(-10vh)}100%{transform:translateY(110vh)}}
+
+.snow-container{position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden;opacity:0;transition:opacity .8s}
+.snow-container.active{opacity:1}
+.snowflake{
+  position:absolute;background:white;border-radius:50%;
+  animation:snow-fall linear infinite;
+}
+@keyframes snow-fall{
+  0%{transform:translateY(-2vh) translateX(0) rotate(0deg)}
+  25%{transform:translateY(25vh) translateX(12px) rotate(90deg)}
+  50%{transform:translateY(50vh) translateX(-8px) rotate(180deg)}
+  75%{transform:translateY(75vh) translateX(18px) rotate(270deg)}
+  100%{transform:translateY(102vh) translateX(0) rotate(360deg)}
+}
+
+.lightning{position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .04s}
+.lightning.flash{opacity:1;background:rgba(230,235,250,0.18)}
+.lightning.flash2{opacity:1;background:rgba(220,225,240,0.08)}
+
+.fog-container{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity 1.5s}
+.fog-container.active{opacity:1}
+.fog-band{
+  position:absolute;left:-10%;width:120%;
+  background:linear-gradient(to right,transparent,rgba(200,210,220,var(--fog-a,0.2)),rgba(210,218,228,var(--fog-a,0.2)),transparent);
+  filter:blur(var(--fog-blur,20px));
+  animation:fog-drift var(--fog-dur,40s) ease-in-out infinite alternate;
+}
+@keyframes fog-drift{0%{transform:translateX(-3%)}100%{transform:translateX(3%)}}
+
+/* Book layer */
+#sky{position:absolute;top:0;left:0;will-change:transform;z-index:5;cursor:grab}
+#sky:active{cursor:grabbing}
+
+/* Loading */
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:60;background:#0a0a12;transition:opacity .8s}
+#loading.done{opacity:0;pointer-events:none}
+#loading .spinner{width:24px;height:24px;border:2px solid rgba(212,200,168,.15);border-top-color:rgba(212,200,168,.5);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{margin-top:12px;font-size:.65rem;color:rgba(212,200,168,.4);letter-spacing:.15em;text-transform:uppercase}
+
+/* Header */
+#header{
+  position:fixed;top:0;left:0;right:0;z-index:10;pointer-events:none;
+  padding:24px 24px 0;text-align:center;
+}
+#header h1{
+  font-family:'Instrument Serif',serif;font-size:1.5rem;font-weight:400;letter-spacing:.02em;
+  color:rgba(255,255,255,0.92);text-shadow:0 1px 12px rgba(0,0,0,0.4);
+  transition:color .8s;
+}
+#weather-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  margin-top:10px;padding:6px 18px;
+  font-size:.65rem;letter-spacing:.08em;
+  color:rgba(255,255,255,0.7);
+  border:1px solid rgba(255,255,255,0.12);border-radius:100px;
+  background:rgba(255,255,255,0.06);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:all .8s;
+}
+#weather-badge .temp{font-size:.8rem;font-weight:500;color:rgba(255,255,255,0.9)}
+#weather-badge .desc{opacity:0.7}
+#weather-badge .city-name{font-weight:500}
+
+/* City picker */
+#city-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:20;
+  background:linear-gradient(to top,rgba(0,0,0,0.5) 0%,rgba(0,0,0,0.3) 60%,transparent 100%);
+  padding:12px 0 max(12px,env(safe-area-inset-bottom));
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+#city-scroll{
+  display:flex;gap:8px;padding:0 16px;
+  overflow-x:auto;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+#city-scroll::-webkit-scrollbar{display:none}
+
+.city-chip{
+  flex:0 0 auto;
+  padding:7px 16px;border-radius:100px;
+  font-size:.55rem;letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(255,255,255,0.55);
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);
+  cursor:pointer;transition:all .25s;
+  white-space:nowrap;
+  font-family:'DM Sans',sans-serif;
+}
+.city-chip:hover{color:rgba(255,255,255,0.85);border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.1)}
+.city-chip.active{
+  color:rgba(255,255,255,0.95);
+  border-color:rgba(255,255,255,0.35);
+  background:rgba(255,255,255,0.15);
+}
+.city-chip.loading{
+  opacity:0.5;pointer-events:none;
+}
+
+/* Search in city bar */
+#city-search-wrap{flex:0 0 auto;position:relative}
+#city-search-input{
+  width:130px;padding:7px 14px;border-radius:100px;
+  font-size:.55rem;letter-spacing:.08em;
+  color:rgba(255,255,255,0.8);
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);
+  outline:none;font-family:'DM Sans',sans-serif;
+  transition:all .25s;
+}
+#city-search-input:focus{border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);width:180px}
+#city-search-input::placeholder{color:rgba(255,255,255,0.3)}
+#search-results{
+  position:absolute;bottom:100%;left:0;margin-bottom:6px;
+  min-width:200px;max-height:200px;overflow-y:auto;
+  background:rgba(15,15,25,0.92);border:1px solid rgba(255,255,255,0.12);
+  border-radius:10px;display:none;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+.search-item{
+  padding:10px 14px;cursor:pointer;
+  font-size:.6rem;color:rgba(255,255,255,0.65);
+  border-bottom:1px solid rgba(255,255,255,0.05);
+  transition:background .15s;
+}
+.search-item:hover{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.9)}
+.search-item:last-child{border-bottom:none}
+
+/* Show all button */
+#show-all{
+  position:fixed;top:24px;right:24px;z-index:10;
+  padding:6px 16px;
+  background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);
+  border:1px solid rgba(255,255,255,0.15);border-radius:100px;
+  font-size:.5rem;cursor:pointer;pointer-events:all;
+  transition:all .3s;font-family:'DM Sans',sans-serif;
+  letter-spacing:.12em;text-transform:uppercase;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+#show-all:hover{color:rgba(255,255,255,0.9);border-color:rgba(255,255,255,0.3)}
+
+/* Books */
+.book{position:absolute;transform:translate(-50%,-50%);cursor:pointer;transition:left .8s ease,top .8s ease}
+.book:hover{z-index:500}
+.book.dimmed{opacity:.25;transition:opacity .3s}
+.book-inner{position:relative;animation:float var(--float-dur,8s) ease-in-out var(--float-del,0s) infinite alternate}
+.book-cover{
+  width:48px;height:68px;border-radius:4px;overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,0.25),0 1px 6px rgba(0,0,0,0.15);
+  transition:transform .4s ease,box-shadow .3s ease;
+}
+.book-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.book-cover .ph-mini{
+  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  font-size:7px;color:rgba(255,255,255,0.7);padding:4px;text-align:center;line-height:1.2;
+  font-family:'Instrument Serif',serif;
+}
+@keyframes float{0%{transform:translateY(0)}100%{transform:translateY(var(--float-y,-5px))}}
+.book:hover .book-cover{transform:scale(1.6);box-shadow:0 8px 35px rgba(0,0,0,0.35)}
+.book:hover .book-label{opacity:1;transform:translateX(-50%) translateY(0)}
+.book.auto-reveal .book-cover{transform:scale(1.4)}
+.book.auto-reveal .book-label{opacity:1;transform:translateX(-50%) translateY(0)}
+.book-label{
+  position:absolute;top:100%;left:50%;transform:translateX(-50%) translateY(4px);
+  margin-top:8px;opacity:0;transition:opacity .4s ease,transform .4s ease;
+  text-align:center;pointer-events:none;white-space:nowrap;
+}
+.book-label .bl-title{font-size:9px;font-weight:500;color:rgba(255,255,255,0.95);text-shadow:0 1px 8px rgba(0,0,0,0.6),0 0 20px rgba(0,0,0,0.4);max-width:100px;overflow:hidden;text-overflow:ellipsis}
+.book-label .bl-author{font-size:8px;color:rgba(255,255,255,0.6);text-shadow:0 1px 8px rgba(0,0,0,0.5)}
+.sky-revealed .book-cover{transform:scale(1)!important}
+.sky-revealed .book-label{opacity:1!important;transform:translateX(-50%) translateY(0)!important}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;z-index:100}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);border-radius:16px;padding:32px;max-width:320px;text-align:center;box-shadow:0 12px 50px rgba(0,0,0,0.3);position:relative;transform:translateY(20px);transition:transform .3s}
+.modal-bg.open .modal{transform:translateY(0)}
+.modal-x{position:absolute;top:10px;right:14px;background:none;border:none;font-size:22px;color:rgba(30,50,90,0.35);cursor:pointer}
+.modal-img{width:120px;height:170px;object-fit:cover;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,0.15)}
+.modal-ph{width:120px;height:170px;margin:0 auto;display:flex;align-items:center;justify-content:center;background:rgba(30,50,90,0.06);border-radius:6px;font-size:14px;color:rgba(30,50,90,0.5);padding:12px}
+.modal h2{margin-top:16px;font-size:18px;font-weight:600;color:rgba(30,50,90,0.9)}
+.modal .ma{font-size:14px;color:rgba(30,50,90,0.55);margin-top:4px}
+.modal .mg{display:inline-block;margin-top:10px;padding:3px 12px;font-size:11px;background:rgba(30,50,90,0.08);color:rgba(30,50,90,0.6);border-radius:12px}
+
+@media(max-width:600px){
+  #header h1{font-size:1.2rem}
+  .book-cover{width:40px;height:56px}
+  #weather-badge{font-size:.55rem;padding:5px 14px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="hdri-canvas"></canvas>
+<canvas id="stars-canvas"></canvas>
+<div id="moon"></div>
+
+<!-- Weather effects -->
+<div class="rain-container" id="rain"></div>
+<div class="snow-container" id="snow"></div>
+<div class="lightning" id="lightning"></div>
+<div class="fog-container" id="fog"></div>
+
+<div id="sky"></div>
+<div id="loading"><div class="spinner"></div><p>Loading sky...</p></div>
+
+<!-- Header -->
+<div id="header">
+  <h1>Pratyush's Library</h1>
+  <div id="weather-badge">
+    <span class="desc">detecting weather...</span>
+  </div>
+</div>
+
+<button id="show-all">Show All</button>
+
+<!-- City picker -->
+<div id="city-bar">
+  <div id="city-scroll">
+    <div id="city-search-wrap">
+      <input type="text" id="city-search-input" placeholder="Search city...">
+      <div id="search-results"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mbg"><div class="modal" id="modal"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
+
+<script>
+// ===== Cities =====
+const CITIES = [
+  { name: 'New York',     lat: 40.71,  lon: -74.01 },
+  { name: 'London',       lat: 51.51,  lon: -0.13 },
+  { name: 'Tokyo',        lat: 35.68,  lon: 139.69 },
+  { name: 'Paris',        lat: 48.86,  lon: 2.35 },
+  { name: 'Sydney',       lat: -33.87, lon: 151.21 },
+  { name: 'Dubai',        lat: 25.20,  lon: 55.27 },
+  { name: 'Mumbai',       lat: 19.08,  lon: 72.88 },
+  { name: 'Singapore',    lat: 1.35,   lon: 103.82 },
+  { name: 'São Paulo',    lat: -23.55, lon: -46.63 },
+  { name: 'Cape Town',    lat: -33.93, lon: 18.42 },
+  { name: 'Toronto',      lat: 43.65,  lon: -79.38 },
+  { name: 'Berlin',       lat: 52.52,  lon: 13.41 },
+  { name: 'Seoul',        lat: 37.57,  lon: 126.98 },
+  { name: 'Mexico City',  lat: 19.43,  lon: -99.13 },
+  { name: 'Cairo',        lat: 30.04,  lon: 31.24 },
+  { name: 'Stockholm',    lat: 59.33,  lon: 18.07 },
+  { name: 'Bangkok',      lat: 13.76,  lon: 100.50 },
+  { name: 'Nairobi',      lat: -1.29,  lon: 36.82 },
+  { name: 'Buenos Aires', lat: -34.60, lon: -58.38 },
+  { name: 'Reykjavik',    lat: 64.15,  lon: -21.94 },
+];
+
+// ===== HDRI config =====
+const HDRI_CDN = 'https://dl.polyhaven.org/file/ph-assets/HDRIs';
+const SKY_HDRIS = {
+  clear:       'kloofendal_43d_clear_puresky',
+  cloudy:      'kloofendal_48d_partly_cloudy_puresky',
+  overcast:    'kloofendal_overcast_puresky',
+  fog:         'kloofendal_misty_morning_puresky',
+  rain:        'kloofendal_overcast_puresky',
+  snow:        'kloofendal_overcast_puresky',
+  storm:       'kloofendal_overcast_puresky',
+  sunset:      'belfast_sunset_puresky',
+  sunrise:     'evening_road_01_puresky',
+  misty:       'kloofendal_28d_misty_puresky',
+};
+
+function hdriUrl(slug, res) { return HDRI_CDN+'/hdr/'+res+'/'+slug+'_'+res+'.hdr'; }
+
+// ===== Three.js =====
+const canvas = document.getElementById('hdri-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputEncoding = THREE.sRGBEncoding;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 0.01);
+
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+pmremGenerator.compileEquirectangularShader();
+
+let targetRotY = 0, currentRotY = 0;
+let panRotX = 0, panRotY = 0;
+const autoRotateSpeed = 0.012;
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  drawStars();
+});
+
+function animateScene() {
+  requestAnimationFrame(animateScene);
+  targetRotY += autoRotateSpeed * 0.016;
+  currentRotY += (targetRotY + panRotY - currentRotY) * 0.03;
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = currentRotY;
+  camera.rotation.x = Math.max(-0.4, Math.min(0.4, panRotX * 0.03));
+  renderer.render(scene, camera);
+}
+animateScene();
+
+// ===== Stars canvas =====
+const starsCanvas = document.getElementById('stars-canvas');
+const starsCtx = starsCanvas.getContext('2d');
+let starData = [];
+
+function generateStars() {
+  starData = [];
+  for (let i = 0; i < 300; i++) {
+    starData.push({
+      x: Math.random(),
+      y: Math.random() * 0.85, // mostly upper portion
+      r: 0.3 + Math.random() * 1.2,
+      brightness: 0.3 + Math.random() * 0.7,
+      twinkleSpeed: 1 + Math.random() * 3,
+      twinkleOffset: Math.random() * Math.PI * 2,
+    });
+  }
+}
+generateStars();
+
+function drawStars() {
+  starsCanvas.width = window.innerWidth;
+  starsCanvas.height = window.innerHeight;
+}
+drawStars();
+
+function animateStars(t) {
+  requestAnimationFrame(animateStars);
+  if (!starsCanvas.classList.contains('visible')) return;
+  const ctx = starsCtx;
+  const w = starsCanvas.width, h = starsCanvas.height;
+  ctx.clearRect(0, 0, w, h);
+  for (const s of starData) {
+    const twinkle = 0.5 + 0.5 * Math.sin(t * 0.001 * s.twinkleSpeed + s.twinkleOffset);
+    const alpha = s.brightness * (0.4 + twinkle * 0.6);
+    ctx.beginPath();
+    ctx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(220,218,210,' + alpha.toFixed(2) + ')';
+    ctx.fill();
+    // Glow for bright stars
+    if (s.r > 0.8) {
+      ctx.beginPath();
+      ctx.arc(s.x * w, s.y * h, s.r * 3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200,198,185,' + (alpha * 0.12).toFixed(3) + ')';
+      ctx.fill();
+    }
+  }
+}
+requestAnimationFrame(animateStars);
+
+// ===== HDRI loading =====
+let currentEnvTexture = null;
+let currentCondition = null;
+
+function setNightBackground(weatherCondition) {
+  // Night sky colors vary by weather
+  const colors = {
+    clear:    [0x0a0e1a, 0x0d1225, 0x101830],
+    cloudy:   [0x12151e, 0x181c28, 0x1e2232],
+    overcast: [0x181a20, 0x1e2028, 0x252830],
+    rain:     [0x0e1015, 0x12151c, 0x181c22],
+    storm:    [0x0a0c12, 0x0e1018, 0x141820],
+    snow:     [0x1a1c24, 0x20242e, 0x282c38],
+    fog:      [0x1a1c22, 0x222530, 0x2a2e3a],
+  };
+  const c = colors[weatherCondition] || colors.clear;
+
+  // Create gradient texture
+  const size = 512;
+  const gradCanvas = document.createElement('canvas');
+  gradCanvas.width = size; gradCanvas.height = size;
+  const gctx = gradCanvas.getContext('2d');
+  const grad = gctx.createLinearGradient(0, 0, 0, size);
+  const topCol = new THREE.Color(c[0]);
+  const midCol = new THREE.Color(c[1]);
+  const botCol = new THREE.Color(c[2]);
+  grad.addColorStop(0, '#' + topCol.getHexString());
+  grad.addColorStop(0.5, '#' + midCol.getHexString());
+  grad.addColorStop(1, '#' + botCol.getHexString());
+  gctx.fillStyle = grad;
+  gctx.fillRect(0, 0, size, size);
+
+  const tex = new THREE.CanvasTexture(gradCanvas);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  scene.background = tex;
+  if (currentEnvTexture) currentEnvTexture.dispose();
+  currentEnvTexture = tex;
+
+  renderer.toneMappingExposure = 1.0;
+  document.getElementById('loading').classList.add('done');
+}
+
+function loadHDRI(slug, callback) {
+  const url = hdriUrl(slug, '2k');
+  const loader = new THREE.RGBELoader();
+  loader.load(url, function(texture) {
+    const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+    scene.background = envMap;
+    if (currentEnvTexture) currentEnvTexture.dispose();
+    currentEnvTexture = envMap;
+    texture.dispose();
+    document.getElementById('loading').classList.add('done');
+    if (callback) callback();
+  }, undefined, function() {
+    // Fallback to 1k
+    const url1k = hdriUrl(slug, '1k');
+    new THREE.RGBELoader().load(url1k, function(texture) {
+      const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+      scene.background = envMap;
+      if (currentEnvTexture) currentEnvTexture.dispose();
+      currentEnvTexture = envMap;
+      texture.dispose();
+      document.getElementById('loading').classList.add('done');
+      if (callback) callback();
+    }, undefined, function() {
+      scene.background = new THREE.Color(0x4488cc);
+      document.getElementById('loading').classList.add('done');
+      if (callback) callback();
+    });
+  });
+}
+
+// ===== Weather effects =====
+let lightningTimer = null;
+
+function clearEffects() {
+  ['rain','snow'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('active');
+    setTimeout(() => { el.innerHTML = ''; }, 800);
+  });
+  document.getElementById('fog').classList.remove('active');
+  document.getElementById('fog').innerHTML = '';
+  starsCanvas.classList.remove('visible');
+  document.getElementById('moon').classList.remove('visible');
+  if (lightningTimer) { clearTimeout(lightningTimer); lightningTimer = null; }
+}
+
+function startRain(intensity) {
+  const c = document.getElementById('rain');
+  const n = intensity === 'heavy' ? 250 : intensity === 'medium' ? 140 : 70;
+  c.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'rain-drop';
+    d.style.left = (Math.random()*100)+'%';
+    d.style.height = (intensity==='heavy' ? 20+Math.random()*30 : 12+Math.random()*22)+'px';
+    d.style.animationDuration = (intensity==='heavy' ? 0.25+Math.random()*0.25 : 0.4+Math.random()*0.4)+'s';
+    d.style.animationDelay = (-Math.random()*2)+'s';
+    d.style.opacity = (0.2+Math.random()*0.4);
+    c.appendChild(d);
+  }
+  requestAnimationFrame(() => c.classList.add('active'));
+}
+
+function startSnow(intensity) {
+  const c = document.getElementById('snow');
+  const n = intensity === 'heavy' ? 150 : 80;
+  c.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const f = document.createElement('div');
+    f.className = 'snowflake';
+    f.style.left = (Math.random()*100)+'%';
+    const s = 2+Math.random()*(intensity==='heavy' ? 6 : 4);
+    f.style.width = s+'px'; f.style.height = s+'px';
+    f.style.animationDuration = (5+Math.random()*8)+'s';
+    f.style.animationDelay = (-Math.random()*12)+'s';
+    f.style.opacity = (0.4+Math.random()*0.5);
+    f.style.filter = 'blur('+(Math.random()*1.5).toFixed(1)+'px)';
+    c.appendChild(f);
+  }
+  requestAnimationFrame(() => c.classList.add('active'));
+}
+
+function startLightning() {
+  const el = document.getElementById('lightning');
+  function flash() {
+    el.className = 'lightning flash';
+    setTimeout(() => { el.className = 'lightning'; }, 70);
+    setTimeout(() => {
+      if (Math.random() > 0.4) { // double flash
+        el.className = 'lightning flash2';
+        setTimeout(() => { el.className = 'lightning'; }, 50);
+      }
+    }, 120 + Math.random() * 80);
+    lightningTimer = setTimeout(flash, 3000 + Math.random() * 15000);
+  }
+  lightningTimer = setTimeout(flash, 1500 + Math.random() * 3000);
+}
+
+function startFog(density) {
+  const c = document.getElementById('fog');
+  c.innerHTML = '';
+  const n = density === 'thick' ? 6 : 4;
+  for (let i = 0; i < n; i++) {
+    const band = document.createElement('div');
+    band.className = 'fog-band';
+    const h = 15 + Math.random() * 25;
+    band.style.height = h + '%';
+    band.style.top = (Math.random() * 80) + '%';
+    band.style.setProperty('--fog-a', (density==='thick' ? 0.2+Math.random()*0.15 : 0.1+Math.random()*0.1).toFixed(2));
+    band.style.setProperty('--fog-blur', (15 + Math.random() * 20) + 'px');
+    band.style.setProperty('--fog-dur', (25 + Math.random() * 30) + 's');
+    band.style.animationDelay = (-Math.random() * 20) + 's';
+    c.appendChild(band);
+  }
+  requestAnimationFrame(() => c.classList.add('active'));
+}
+
+function showStars(showMoon) {
+  starsCanvas.classList.add('visible');
+  if (showMoon) document.getElementById('moon').classList.add('visible');
+}
+
+// ===== Apply full weather state =====
+function applyWeather(isDay, condition, wmoCode) {
+  currentCondition = condition;
+  clearEffects();
+
+  if (!isDay) {
+    // === NIGHT ===
+    const nightWeather = (['rain','storm','snow','fog','overcast','cloudy'].includes(condition)) ? condition : 'clear';
+    setNightBackground(nightWeather);
+
+    // Stars visible only on clear/partly cloudy nights
+    if (nightWeather === 'clear' || nightWeather === 'cloudy') showStars(true);
+
+    // Night weather effects
+    if (condition === 'rain')  startRain('medium');
+    if (condition === 'storm') { startRain('heavy'); startLightning(); }
+    if (condition === 'snow')  startSnow('medium');
+    if (condition === 'fog')   startFog('thick');
+    if (condition === 'overcast') startFog('light'); // subtle haze
+
+    renderer.toneMappingExposure = 0.8;
+
+  } else {
+    // === DAY ===
+    const slug = SKY_HDRIS[condition] || SKY_HDRIS.clear;
+    loadHDRI(slug);
+
+    if (condition === 'rain')      { startRain('medium'); renderer.toneMappingExposure = 0.65; }
+    else if (condition === 'storm'){ startRain('heavy'); startLightning(); renderer.toneMappingExposure = 0.5; }
+    else if (condition === 'snow') { startSnow('medium'); renderer.toneMappingExposure = 0.7; }
+    else if (condition === 'fog')  { startFog('thick'); renderer.toneMappingExposure = 0.75; }
+    else if (condition === 'overcast') { startFog('light'); renderer.toneMappingExposure = 0.6; }
+    else if (condition === 'sunset' || condition === 'sunrise') { renderer.toneMappingExposure = 0.85; }
+    else { renderer.toneMappingExposure = 1.0; }
+  }
+}
+
+// ===== WMO mapping =====
+function wmoToCondition(code) {
+  if (code <= 1) return 'clear';
+  if (code <= 2) return 'cloudy';
+  if (code <= 3) return 'overcast';
+  if (code <= 48) return 'fog';
+  if (code <= 67) return 'rain';
+  if (code <= 86) return 'snow';
+  return 'storm';
+}
+
+function getSunPhase(sunrise, sunset, now) {
+  const sr = new Date(sunrise).getTime(), ss = new Date(sunset).getTime(), t = now.getTime();
+  const win = 40 * 60 * 1000;
+  if (Math.abs(t - sr) < win) return 'sunrise';
+  if (Math.abs(t - ss) < win) return 'sunset';
+  return null;
+}
+
+function getWmoDesc(code, isDay) {
+  const d = {0:isDay?'Sunny':'Clear',1:isDay?'Mostly Sunny':'Mostly Clear',2:'Partly Cloudy',3:'Overcast',45:'Foggy',48:'Rime Fog',51:'Light Drizzle',53:'Drizzle',55:'Heavy Drizzle',56:'Freezing Drizzle',57:'Heavy Freezing Drizzle',61:'Light Rain',63:'Rain',65:'Heavy Rain',66:'Freezing Rain',67:'Heavy Freezing Rain',71:'Light Snow',73:'Snow',75:'Heavy Snow',77:'Snow Grains',80:'Light Showers',81:'Showers',82:'Heavy Showers',85:'Light Snow Showers',86:'Snow Showers',95:'Thunderstorm',96:'Thunderstorm w/ Hail',99:'Severe Thunderstorm'};
+  return d[code] || (isDay ? 'Clear' : 'Clear Night');
+}
+
+// ===== Fetch weather for coords =====
+let activeCity = null;
+
+async function loadCity(lat, lon, cityName) {
+  const badge = document.getElementById('weather-badge');
+  badge.innerHTML = '<span class="desc">loading ' + cityName + '...</span>';
+
+  // Mark active chip
+  document.querySelectorAll('.city-chip').forEach(c => c.classList.remove('active','loading'));
+  const chip = document.querySelector('.city-chip[data-city="'+cityName+'"]');
+  if (chip) { chip.classList.add('active','loading'); }
+  activeCity = cityName;
+
+  try {
+    const resp = await fetch(
+      'https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+
+      '&current_weather=true&daily=sunrise,sunset&timezone=auto&forecast_days=1'
+    );
+    const data = await resp.json();
+    const w = data.current_weather;
+    const isDay = w.is_day === 1;
+    const now = new Date();
+
+    let condition = wmoToCondition(w.weathercode);
+    const sunPhase = getSunPhase(data.daily.sunrise[0], data.daily.sunset[0], now);
+    if (isDay && sunPhase && (condition === 'clear' || condition === 'cloudy')) {
+      condition = sunPhase;
+    }
+
+    const desc = getWmoDesc(w.weathercode, isDay);
+    const temp = Math.round(w.temperature);
+
+    applyWeather(isDay, condition, w.weathercode);
+
+    badge.innerHTML =
+      '<span class="city-name">' + cityName + '</span>' +
+      '<span class="desc">' + desc + '</span>' +
+      '<span class="temp">' + temp + '°</span>';
+
+    if (chip) { chip.classList.remove('loading'); chip.classList.add('active'); }
+
+    console.log(cityName + ':', desc, temp+'°C', isDay ? 'day' : 'night', 'condition:', condition);
+
+  } catch (e) {
+    console.error('Weather failed:', e);
+    badge.innerHTML = '<span class="desc">weather unavailable</span>';
+    applyWeather(true, 'clear', 0);
+  }
+}
+
+// ===== Build city chips =====
+const cityScroll = document.getElementById('city-scroll');
+CITIES.forEach(city => {
+  const chip = document.createElement('div');
+  chip.className = 'city-chip';
+  chip.textContent = city.name;
+  chip.dataset.city = city.name;
+  chip.addEventListener('click', () => loadCity(city.lat, city.lon, city.name));
+  cityScroll.appendChild(chip);
+});
+
+// ===== City search =====
+const searchInput = document.getElementById('city-search-input');
+const searchResults = document.getElementById('search-results');
+let searchTimer = null;
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = searchInput.value.trim();
+  if (q.length < 2) { searchResults.style.display = 'none'; return; }
+  searchTimer = setTimeout(async () => {
+    try {
+      const resp = await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=5&language=en&format=json');
+      const data = await resp.json();
+      searchResults.innerHTML = '';
+      if (!data.results || !data.results.length) { searchResults.style.display = 'none'; return; }
+      data.results.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'search-item';
+        div.textContent = r.name + (r.admin1 ? ', '+r.admin1 : '') + (r.country ? ' — '+r.country : '');
+        div.addEventListener('click', () => {
+          searchInput.value = '';
+          searchResults.style.display = 'none';
+          loadCity(r.latitude, r.longitude, r.name);
+        });
+        searchResults.appendChild(div);
+      });
+      searchResults.style.display = 'block';
+    } catch (e) {}
+  }, 300);
+});
+
+searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { searchResults.style.display = 'none'; searchInput.blur(); } });
+document.addEventListener('click', e => { if (!e.target.closest('#city-search-wrap')) searchResults.style.display = 'none'; });
+
+// ===== Init: detect location or default =====
+async function init() {
+  // Try IP location
+  try {
+    const resp = await fetch('https://ipapi.co/json/');
+    const data = await resp.json();
+    if (data.latitude && data.longitude && data.city) {
+      loadCity(data.latitude, data.longitude, data.city);
+      return;
+    }
+  } catch (e) {}
+  // Default to New York
+  loadCity(40.71, -74.01, 'New York');
+}
+init();
+
+// ===== Book data =====
+const B=[
+  {t:"Addiction by Design",a:"Natasha Dow Schüll",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/12898178-M.jpg"},
+  {t:"Extreme Economies",a:"Richard Davies",g:"Economics",c:"https://covers.openlibrary.org/b/id/12707846-M.jpg"},
+  {t:"Small Rain",a:"Garth Greenwell",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14744666-M.jpg"},
+  {t:"The Maniac",a:"Benjamín Labatut",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14036185-M.jpg"},
+  {t:"Noise",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10981966-M.jpg"},
+  {t:"Range",a:"David Epstein",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8782615-M.jpg"},
+  {t:"How We Got to Now",a:"Steven Johnson",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9692318-M.jpg"},
+  {t:"The Money Trap",a:"Alok Sama",g:"Business",c:"https://covers.openlibrary.org/b/id/14802826-M.jpg"},
+  {t:"Exhalation",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8793546-M.jpg"},
+  {t:"Small Data",a:"Martin Lindstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/8881323-M.jpg"},
+  {t:"This Is Marketing",a:"Seth Godin",g:"Business",c:"https://covers.openlibrary.org/b/id/14624926-M.jpg"},
+  {t:"How I Built This",a:"Guy Raz",g:"Business",c:"https://covers.openlibrary.org/b/id/10454172-M.jpg"},
+  {t:"Atomic Habits",a:"James Clear",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/12539702-M.jpg"},
+  {t:"Loonshots",a:"Safi Bahcall",g:"Business",c:"https://covers.openlibrary.org/b/id/8518798-M.jpg"},
+  {t:"No Rules Rules",a:"Reed Hastings",g:"Business",c:"https://covers.openlibrary.org/b/id/10524294-M.jpg"},
+  {t:"Antifragile",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9180157-M.jpg"},
+  {t:"Thinking, Fast and Slow",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/15174454-M.jpg"},
+  {t:"Outliers",a:"Malcolm Gladwell",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10021591-M.jpg"},
+  {t:"Sapiens",a:"Yuval Noah Harari",g:"History",c:"https://covers.openlibrary.org/b/id/8634250-M.jpg"},
+  {t:"The Alchemist",a:"Paulo Coelho",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7414780-M.jpg"},
+  {t:"The Lean Startup",a:"Eric Ries",g:"Business",c:"https://covers.openlibrary.org/b/id/7104760-M.jpg"},
+  {t:"Factfulness",a:"Hans Rosling",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8186237-M.jpg"},
+  {t:"Man's Search for Meaning",a:"Viktor Frankl",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/8516506-M.jpg"},
+  {t:"Behave",a:"Robert Sapolsky",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8814831-M.jpg"},
+  {t:"The Black Swan",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/5721840-M.jpg"},
+  {t:"Pride and Prejudice",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/523015-M.jpg"},
+  {t:"Surely You're Joking, Mr. Feynman!",a:"Richard Feynman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9274698-M.jpg"},
+  {t:"The Everything Store",a:"Brad Stone",g:"Business",c:"https://covers.openlibrary.org/b/id/7264584-M.jpg"},
+  {t:"Stories of Your Life and Others",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/524046-M.jpg"},
+  {t:"Guns, Germs, and Steel",a:"Jared Diamond",g:"History",c:"https://covers.openlibrary.org/b/id/7884018-M.jpg"},
+];
+
+let seed = 42;
+function rand(){seed=(seed*16807)%2147483647;return(seed-1)/2147483646;}
+
+const sky = document.getElementById('sky');
+const COLS = Math.max(5, Math.ceil(Math.sqrt(B.length*1.4)));
+const ROWS = Math.ceil(B.length/COLS);
+const CELL_W=160, CELL_H=150;
+const SKY_W=COLS*CELL_W+200, SKY_H=ROWS*CELL_H+200;
+sky.style.width=SKY_W+'px'; sky.style.height=SKY_H+'px';
+
+const shuffled=[...B];
+for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+
+const bookEls=[];
+shuffled.forEach((book,i)=>{
+  const col=i%COLS, row=Math.floor(i/COLS);
+  const cx=100+col*CELL_W+CELL_W/2+(rand()-0.5)*100;
+  const cy=100+row*CELL_H+CELL_H/2+(rand()-0.5)*80;
+  const el=document.createElement('div'); el.className='book';
+  el.style.left=cx+'px'; el.style.top=cy+'px';
+  const cover=book.c?'<img src="'+book.c+'" alt="" loading="lazy">':'<div class="ph-mini">'+book.t+'</div>';
+  el.innerHTML='<div class="book-inner" style="--float-dur:'+(5+rand()*6).toFixed(1)+'s;--float-del:'+(-rand()*8).toFixed(1)+'s;--float-y:'+(-(3+rand()*5)).toFixed(1)+'px;"><div class="book-cover">'+cover+'</div><div class="book-label"><div class="bl-title">'+book.t+'</div>'+(book.a?'<div class="bl-author">'+book.a+'</div>':'')+'</div></div>';
+  el.addEventListener('click',()=>openModal(book));
+  el.addEventListener('mouseenter',()=>{bookEls.forEach(o=>{if(o.el===el)return;const dx=o.x-cx,dy=o.y-cy;if(dx*dx+dy*dy<35000)o.el.classList.add('dimmed');});});
+  el.addEventListener('mouseleave',()=>bookEls.forEach(o=>o.el.classList.remove('dimmed')));
+  sky.appendChild(el);
+  bookEls.push({el,x:cx,y:cy});
+});
+
+// Auto-reveal
+let allRevealed=false;
+(function autoReveal(){
+  function tick(){
+    if(allRevealed)return;
+    const vw=window.innerWidth,vh=window.innerHeight,m=60;
+    const vis=bookEls.filter(s=>{const sx=s.x+px,sy=s.y+py;return sx>-m&&sx<vw+m&&sy>-m&&sy<vh+m;});
+    const pool=vis.length?vis:bookEls;
+    const s=pool[Math.floor(Math.random()*pool.length)];
+    if(!s.el.classList.contains('auto-reveal')){s.el.classList.add('auto-reveal');setTimeout(()=>s.el.classList.remove('auto-reveal'),2000+Math.random()*1000);}
+    setTimeout(tick,2000+Math.random()*3000);
+  }
+  setTimeout(tick,1000);
+})();
+
+// Pan
+let px=-(SKY_W/2-window.innerWidth/2), py=-(SKY_H/2-window.innerHeight/2);
+function clamp(){
+  const minX=-(SKY_W-window.innerWidth),minY=-(SKY_H-window.innerHeight);
+  if(SKY_W<=window.innerWidth)px=-(SKY_W-window.innerWidth)/2;else px=Math.min(0,Math.max(minX,px));
+  if(SKY_H<=window.innerHeight)py=-(SKY_H-window.innerHeight)/2;else py=Math.min(0,Math.max(minY,py));
+}
+function renderPos(){
+  clamp(); sky.style.transform='translate('+px+'px,'+py+'px)';
+  panRotY=(px/(SKY_W-window.innerWidth||1))*0.35;
+  panRotX=(py/(SKY_H-window.innerHeight||1))*0.2;
+}
+renderPos();
+
+let dragging=false,sx,sy,didDrag=false;
+document.addEventListener('mousedown',e=>{if(e.target.closest('.modal-bg')||e.target.closest('#header')||e.target.closest('#city-bar')||e.target.closest('#show-all'))return;dragging=true;didDrag=false;sx=e.clientX-px;sy=e.clientY-py;});
+document.addEventListener('mousemove',e=>{if(!dragging)return;didDrag=true;px=e.clientX-sx;py=e.clientY-sy;renderPos();});
+document.addEventListener('mouseup',()=>dragging=false);
+document.addEventListener('touchstart',e=>{if(e.target.closest('.modal-bg')||e.target.closest('#header')||e.target.closest('#city-bar')||e.target.closest('#show-all'))return;dragging=true;didDrag=false;sx=e.touches[0].clientX-px;sy=e.touches[0].clientY-py;},{passive:true});
+document.addEventListener('touchmove',e=>{if(!dragging)return;didDrag=true;px=e.touches[0].clientX-sx;py=e.touches[0].clientY-sy;renderPos();},{passive:true});
+document.addEventListener('touchend',()=>dragging=false);
+document.addEventListener('wheel',e=>{if(document.querySelector('.modal-bg.open'))return;px-=e.deltaX;py-=e.deltaY;renderPos();},{passive:true});
+
+// Modal
+function openModal(book){if(didDrag)return;const m=document.getElementById('modal');m.innerHTML='<button class="modal-x" onclick="document.getElementById(\'mbg\').classList.remove(\'open\')">&times;</button>'+(book.c?'<img class="modal-img" src="'+book.c+'" alt="">':'<div class="modal-ph">'+book.t+'</div>')+'<h2>'+book.t+'</h2>'+(book.a?'<div class="ma">'+book.a+'</div>':'')+'<div class="mg">'+book.g+'</div>';document.getElementById('mbg').classList.add('open');}
+document.getElementById('mbg').addEventListener('click',e=>{if(e.target===document.getElementById('mbg'))document.getElementById('mbg').classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('mbg').classList.remove('open');});
+
+// Show All
+const showBtn=document.getElementById('show-all');
+const GCW=120,GCH=160;
+const GCOLS=Math.ceil(Math.sqrt(bookEls.length*(GCH/GCW)));
+showBtn.addEventListener('click',()=>{
+  allRevealed=!allRevealed;sky.classList.toggle('sky-revealed',allRevealed);
+  showBtn.textContent=allRevealed?'Hide All':'Show All';
+  if(allRevealed){const rows=Math.ceil(bookEls.length/GCOLS),gw=GCOLS*GCW,gh=rows*GCH+200;const nw=Math.max(SKY_W,gw+200),nh=Math.max(SKY_H,gh);sky.style.width=nw+'px';sky.style.height=nh+'px';const ox=(nw-gw)/2;bookEls.forEach((s,i)=>{s.el.style.left=(ox+(i%GCOLS)*GCW+GCW/2)+'px';s.el.style.top=(100+Math.floor(i/GCOLS)*GCH+GCH/2)+'px';});}
+  else{sky.style.width=SKY_W+'px';sky.style.height=SKY_H+'px';bookEls.forEach(s=>{s.el.style.left=s.x+'px';s.el.style.top=s.y+'px';});}
+  px=-(parseInt(sky.style.width)/2-window.innerWidth/2);py=-(parseInt(sky.style.height)/2-window.innerHeight/2);renderPos();
+});
+
+document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
+</script>
+</body>
+</html>

@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Day Sky — Pratyush's Library</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:'DM Sans',sans-serif;cursor:grab;user-select:none}
+body:active{cursor:grabbing}
+
+canvas#sky-canvas{position:fixed;inset:0;z-index:0}
+#sky{position:absolute;top:0;left:0;will-change:transform;z-index:1}
+
+#title{position:fixed;top:24px;left:0;right:0;text-align:center;z-index:10;pointer-events:none}
+#title h1{
+  font-family:'Instrument Serif',serif;font-size:1.6rem;font-weight:400;letter-spacing:.02em;
+  color:rgba(255,255,255,0.95);text-shadow:0 1px 12px rgba(30,80,140,0.4);
+}
+#title .sub{font-size:.6rem;color:rgba(255,255,255,0.6);margin-top:6px;letter-spacing:.2em;text-transform:uppercase;font-weight:400}
+#show-all{
+  margin-top:8px;padding:5px 16px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);
+  border:1px solid rgba(255,255,255,0.25);border-radius:100px;font-size:.55rem;cursor:pointer;
+  pointer-events:all;transition:all .3s;font-family:'DM Sans',sans-serif;letter-spacing:.15em;text-transform:uppercase;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+#show-all:hover{background:rgba(255,255,255,0.3);color:#fff}
+
+/* Book covers floating */
+.book{position:absolute;transform:translate(-50%,-50%);cursor:pointer;transition:left .8s ease,top .8s ease}
+.book:hover{z-index:500}
+.book.dimmed{opacity:.3;transition:opacity .3s}
+.book-inner{
+  position:relative;
+  animation:float var(--float-dur,8s) ease-in-out var(--float-del,0s) infinite alternate;
+}
+.book-cover{
+  width:48px;height:68px;border-radius:4px;overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,0.15),0 1px 6px rgba(0,0,0,0.1);
+  transition:transform .4s ease,opacity .4s ease,box-shadow .3s ease;
+  position:relative;
+}
+.book-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.book-cover .ph-mini{
+  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.25);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  font-size:7px;color:rgba(30,50,90,0.7);padding:4px;text-align:center;line-height:1.2;
+  font-family:'Instrument Serif',serif;
+}
+@keyframes float{0%{transform:translateY(0)}100%{transform:translateY(var(--float-y,-5px))}}
+
+.book:hover .book-cover{transform:scale(1.6);box-shadow:0 8px 35px rgba(0,0,0,0.25)}
+.book:hover .book-label{opacity:1;transform:translateY(0)}
+.book.auto-reveal .book-cover{transform:scale(1.4);box-shadow:0 6px 28px rgba(0,0,0,0.2)}
+.book.auto-reveal .book-label{opacity:1;transform:translateY(0)}
+
+.book-label{
+  position:absolute;top:100%;left:50%;transform:translateX(-50%) translateY(4px);
+  margin-top:8px;opacity:0;transition:opacity .4s ease,transform .4s ease;
+  text-align:center;pointer-events:none;white-space:nowrap;
+  transform:translateY(8px);
+}
+.book-label .bl-title{
+  font-size:9px;color:rgba(30,50,90,0.9);line-height:1.3;
+  text-shadow:0 0 12px rgba(255,255,255,0.9),0 0 24px rgba(255,255,255,0.6);
+  max-width:100px;overflow:hidden;text-overflow:ellipsis;
+}
+.book-label .bl-author{
+  font-size:8px;color:rgba(30,50,90,0.55);
+  text-shadow:0 0 12px rgba(255,255,255,0.9);
+}
+
+/* Show All mode */
+.sky-revealed .book-cover{transform:scale(1)!important}
+.sky-revealed .book-label{opacity:1!important;transform:translateY(0)!important}
+.sky-revealed .book{cursor:pointer}
+
+/* Modal */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(30,60,110,0.25);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .3s;z-index:100;
+}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{
+  background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-radius:16px;padding:32px;max-width:320px;text-align:center;
+  box-shadow:0 12px 50px rgba(30,60,110,0.25);position:relative;
+  transform:translateY(20px);transition:transform .3s;
+}
+.modal-bg.open .modal{transform:translateY(0)}
+.modal-x{
+  position:absolute;top:10px;right:14px;background:none;border:none;
+  font-size:22px;color:rgba(30,50,90,0.35);cursor:pointer;line-height:1;
+}
+.modal-x:hover{color:rgba(30,50,90,0.8)}
+.modal-img{width:120px;height:170px;object-fit:cover;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,0.15)}
+.modal-ph{
+  width:120px;height:170px;margin:0 auto;display:flex;align-items:center;justify-content:center;
+  background:rgba(30,50,90,0.06);border-radius:6px;font-size:14px;color:rgba(30,50,90,0.5);padding:12px;
+}
+.modal h2{margin-top:16px;font-size:18px;font-weight:600;color:rgba(30,50,90,0.9)}
+.modal .ma{font-size:14px;color:rgba(30,50,90,0.55);margin-top:4px}
+.modal .mg{
+  display:inline-block;margin-top:10px;padding:3px 12px;font-size:11px;
+  background:rgba(30,50,90,0.08);color:rgba(30,50,90,0.6);border-radius:12px;
+}
+
+@media(max-width:600px){
+  #title h1{font-size:1.2rem}
+  .book-cover{width:40px;height:56px}
+}
+</style>
+</head>
+<body>
+<canvas id="sky-canvas"></canvas>
+<div id="sky"></div>
+
+<div id="title">
+  <h1>Pratyush's Library</h1>
+  <div class="sub">hover to reveal · drag to explore</div>
+  <button id="show-all">Show All</button>
+</div>
+
+<div class="modal-bg" id="mbg"><div class="modal" id="modal"></div></div>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script id="sky-vertex" type="x-shader/x-vertex">
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position, 1.0);
+}
+</script>
+
+<script id="sky-fragment" type="x-shader/x-fragment">
+precision highp float;
+
+varying vec2 vUv;
+uniform float uTime;
+uniform vec2 uResolution;
+uniform vec2 uPan;       // normalized pan offset for parallax
+
+// --- Noise functions ---
+// Hash without sin (better precision)
+float hash(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// FBM — fractal Brownian motion
+float fbm(vec2 p, int octaves) {
+  float value = 0.0;
+  float amplitude = 0.5;
+  float frequency = 1.0;
+  for (int i = 0; i < 7; i++) {
+    if (i >= octaves) break;
+    value += amplitude * noise(p * frequency);
+    frequency *= 2.0;
+    amplitude *= 0.5;
+  }
+  return value;
+}
+
+// --- Sky gradient (atmospheric scattering approximation) ---
+vec3 skyGradient(vec2 uv) {
+  float y = uv.y;
+
+  // Deep blue at top, lighter toward horizon
+  vec3 top = vec3(0.12, 0.38, 0.85);       // deep blue
+  vec3 mid = vec3(0.35, 0.6, 0.95);        // medium blue
+  vec3 horizon = vec3(0.7, 0.85, 0.98);    // pale blue-white
+  vec3 bottom = vec3(0.82, 0.92, 1.0);     // very pale
+
+  vec3 col;
+  if (y > 0.6) {
+    col = mix(mid, top, (y - 0.6) / 0.4);
+  } else if (y > 0.25) {
+    col = mix(horizon, mid, (y - 0.25) / 0.35);
+  } else {
+    col = mix(bottom, horizon, y / 0.25);
+  }
+
+  return col;
+}
+
+// --- Sun ---
+vec3 addSun(vec2 uv, vec3 col) {
+  vec2 sunPos = vec2(0.78, 0.82);
+  float d = length(uv - sunPos);
+
+  // Sun disk
+  float sun = smoothstep(0.035, 0.02, d);
+  col = mix(col, vec3(1.0, 0.99, 0.95), sun * 0.95);
+
+  // Inner glow
+  float glow1 = exp(-d * 12.0) * 0.6;
+  col += vec3(1.0, 0.95, 0.8) * glow1;
+
+  // Outer glow — warm haze
+  float glow2 = exp(-d * 4.0) * 0.15;
+  col += vec3(1.0, 0.9, 0.7) * glow2;
+
+  // Atmospheric halo
+  float halo = exp(-d * 2.0) * 0.08;
+  col += vec3(0.9, 0.85, 0.75) * halo;
+
+  return col;
+}
+
+// --- Cloud layer ---
+float cloudDensity(vec2 p, float time) {
+  vec2 wind = vec2(time * 0.008, time * 0.003);
+  float base = fbm(p * 0.8 + wind, 5);
+  // Detail layer
+  float detail = fbm(p * 2.5 + wind * 1.5, 4) * 0.35;
+  // Wispy layer
+  float wisp = fbm(p * 5.0 + wind * 2.0, 3) * 0.15;
+  float density = base + detail + wisp;
+  // Threshold and shape
+  density = smoothstep(0.42, 0.72, density);
+  return density;
+}
+
+// Volumetric cloud with fake light scattering
+vec4 cloudLayer(vec2 uv, float time, float scale, float height, float speed, float opacity) {
+  vec2 pan = uPan * 0.15 * (1.0 - height); // parallax based on height
+  vec2 p = (uv + pan) * scale;
+  p.x *= uResolution.x / uResolution.y; // aspect correction
+
+  float density = cloudDensity(p, time * speed);
+
+  // Light direction (from sun)
+  vec2 sunDir = normalize(vec2(0.78, 0.82) - uv);
+  float lightSample = cloudDensity(p + sunDir * 0.04, time * speed);
+  float lightDiff = clamp(density - lightSample, 0.0, 1.0);
+
+  // Cloud color: lit side bright white, shadowed side blue-grey
+  vec3 litColor = vec3(1.0, 1.0, 1.0);
+  vec3 shadowColor = vec3(0.7, 0.75, 0.85);
+  vec3 cloudCol = mix(shadowColor, litColor, 0.5 + lightDiff * 0.5);
+
+  // Silver lining near edges
+  float edge = smoothstep(0.0, 0.3, density) * (1.0 - smoothstep(0.3, 0.8, density));
+  cloudCol += vec3(0.15, 0.13, 0.1) * edge;
+
+  return vec4(cloudCol, density * opacity);
+}
+
+void main() {
+  vec2 uv = vUv;
+  float time = uTime;
+
+  // Sky gradient
+  vec3 col = skyGradient(uv);
+
+  // Sun
+  col = addSun(uv, col);
+
+  // Cloud layers (back to front for proper compositing)
+  // High thin cirrus
+  vec4 c3 = cloudLayer(uv, time, 1.8, 0.9, 0.4, 0.25);
+  col = mix(col, c3.rgb, c3.a);
+
+  // Mid-level clouds
+  vec4 c2 = cloudLayer(uv, time, 1.2, 0.6, 0.7, 0.5);
+  col = mix(col, c2.rgb, c2.a);
+
+  // Low cumulus (main clouds)
+  vec4 c1 = cloudLayer(uv, time, 0.7, 0.3, 1.0, 0.75);
+  col = mix(col, c1.rgb, c1.a);
+
+  // Slight vignette
+  float vig = 1.0 - length((uv - 0.5) * vec2(0.8, 1.0)) * 0.3;
+  col *= vig;
+
+  // Tone mapping (subtle)
+  col = pow(col, vec3(0.97));
+
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<script>
+// ===== WebGL Sky =====
+const canvas = document.getElementById('sky-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+const uniforms = {
+  uTime: { value: 0 },
+  uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+  uPan: { value: new THREE.Vector2(0, 0) }
+};
+
+const skyMaterial = new THREE.ShaderMaterial({
+  vertexShader: document.getElementById('sky-vertex').textContent,
+  fragmentShader: document.getElementById('sky-fragment').textContent,
+  uniforms
+});
+
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), skyMaterial);
+scene.add(quad);
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+});
+
+const startTime = performance.now();
+function animateSky() {
+  uniforms.uTime.value = (performance.now() - startTime) / 1000;
+  renderer.render(scene, camera);
+  requestAnimationFrame(animateSky);
+}
+animateSky();
+
+// ===== Book Data =====
+const B=[
+  {t:"Addiction by Design",a:"Natasha Dow Schüll",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/12898178-M.jpg"},
+  {t:"Extreme Economies",a:"Richard Davies",g:"Economics",c:"https://covers.openlibrary.org/b/id/12707846-M.jpg"},
+  {t:"Small Rain",a:"Garth Greenwell",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14744666-M.jpg"},
+  {t:"The Maniac",a:"Benjamín Labatut",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14036185-M.jpg"},
+  {t:"Noise",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10981966-M.jpg"},
+  {t:"Range",a:"David Epstein",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8782615-M.jpg"},
+  {t:"How We Got to Now",a:"Steven Johnson",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9692318-M.jpg"},
+  {t:"The Money Trap",a:"Alok Sama",g:"Business",c:"https://covers.openlibrary.org/b/id/14802826-M.jpg"},
+  {t:"Exhalation",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8793546-M.jpg"},
+  {t:"Small Data",a:"Martin Lindstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/8881323-M.jpg"},
+  {t:"This Is Marketing",a:"Seth Godin",g:"Business",c:"https://covers.openlibrary.org/b/id/14624926-M.jpg"},
+  {t:"How I Built This",a:"Guy Raz",g:"Business",c:"https://covers.openlibrary.org/b/id/10454172-M.jpg"},
+  {t:"Atomic Habits",a:"James Clear",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/12539702-M.jpg"},
+  {t:"Loonshots",a:"Safi Bahcall",g:"Business",c:"https://covers.openlibrary.org/b/id/8518798-M.jpg"},
+  {t:"No Rules Rules",a:"Reed Hastings",g:"Business",c:"https://covers.openlibrary.org/b/id/10524294-M.jpg"},
+  {t:"Guns, Germs, and Steel",a:"Jared Diamond",g:"History",c:"https://covers.openlibrary.org/b/id/7884018-M.jpg"},
+  {t:"Antifragile",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9180157-M.jpg"},
+  {t:"Thinking, Fast and Slow",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/15174454-M.jpg"},
+  {t:"Our Iceberg Is Melting",a:"John Kotter",g:"Business",c:"https://covers.openlibrary.org/b/id/7343706-M.jpg"},
+  {t:"Outliers",a:"Malcolm Gladwell",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10021591-M.jpg"},
+  {t:"Sapiens",a:"Yuval Noah Harari",g:"History",c:"https://covers.openlibrary.org/b/id/8634250-M.jpg"},
+  {t:"Genome",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/1315392-M.jpg"},
+  {t:"The Alchemist",a:"Paulo Coelho",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7414780-M.jpg"},
+  {t:"Change by Design",a:"Tim Brown",g:"Business",c:"https://covers.openlibrary.org/b/id/6305705-M.jpg"},
+  {t:"The Lean Startup",a:"Eric Ries",g:"Business",c:"https://covers.openlibrary.org/b/id/7104760-M.jpg"},
+  {t:"How Innovation Works",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10101301-M.jpg"},
+  {t:"A Strangeness in My Mind",a:"Orhan Pamuk",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8113416-M.jpg"},
+  {t:"An Artist of the Floating World",a:"Kazuo Ishiguro",g:"Fiction",c:"https://covers.openlibrary.org/b/id/4342830-M.jpg"},
+  {t:"Wanderlust",a:"Rebecca Solnit",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/100666-M.jpg"},
+  {t:"A Little History of Economics",a:"Niall Kishtainy",g:"Economics",c:"https://covers.openlibrary.org/b/id/10455766-M.jpg"},
+  {t:"Football in Sun and Shadow",a:"Eduardo Galeano",g:"Sports & Culture",c:"https://covers.openlibrary.org/b/id/11532-M.jpg"},
+  {t:"Switch",a:"Chip & Dan Heath",g:"Business",c:"https://covers.openlibrary.org/b/id/7348937-M.jpg"},
+  {t:"Upside Down",a:"Eduardo Galeano",g:"History",c:"https://covers.openlibrary.org/b/id/580532-M.jpg"},
+  {t:"Mountains of the Mind",a:"Robert Macfarlane",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/8229224-M.jpg"},
+  {t:"Notes from Underground",a:"Fyodor Dostoyevsky",g:"Fiction",c:"https://covers.openlibrary.org/b/id/10445973-M.jpg"},
+  {t:"Underland",a:"Robert Macfarlane",g:"Nature & Travel"},
+  {t:"Indian Summer",a:"Alex von Tunzelmann",g:"History"},
+  {t:"My Friends",a:"Hisham Matar",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14562202-M.jpg"},
+  {t:"Martyr!",a:"Kaveh Akbar",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14562207-M.jpg"},
+  {t:"Shattered Lands",a:"Sam Dalrymple",g:"History"},
+  {t:"Cooked",a:"Michael Pollan",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/2960867-M.jpg"},
+  {t:"Factfulness",a:"Hans Rosling",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8186237-M.jpg"},
+  {t:"Stories of Your Life and Others",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/524046-M.jpg"},
+  {t:"The War of Art",a:"Steven Pressfield",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/288439-M.jpg"},
+  {t:"Behave",a:"Robert Sapolsky",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8814831-M.jpg"},
+  {t:"My Family and Other Animals",a:"Gerald Durrell",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/5547600-M.jpg"},
+  {t:"The Hard Thing About Hard Things",a:"Ben Horowitz",g:"Business",c:"https://covers.openlibrary.org/b/id/7279515-M.jpg"},
+  {t:"21 Lessons for the 21st Century",a:"Yuval Noah Harari",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/13247357-M.jpg"},
+  {t:"The Art of Racing in the Rain",a:"Garth Stein",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6597298-M.jpg"},
+  {t:"Looking for Alaska",a:"John Green",g:"Fiction",c:"https://covers.openlibrary.org/b/id/12614602-M.jpg"},
+  {t:"How to Win Friends and Influence People",a:"Dale Carnegie",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/13314878-M.jpg"},
+  {t:"Sense and Sensibility",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/9278292-M.jpg"},
+  {t:"Pride and Prejudice",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/523015-M.jpg"},
+  {t:"The Wealth of Nations",a:"Adam Smith",g:"Economics",c:"https://covers.openlibrary.org/b/id/12816911-M.jpg"},
+  {t:"Man's Search for Meaning",a:"Viktor Frankl",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/8516506-M.jpg"},
+  {t:"The Class",a:"Erich Segal",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14955402-M.jpg"},
+  {t:"Father Brown Stories",a:"G.K. Chesterton",g:"Fiction",c:"https://covers.openlibrary.org/b/id/94081-M.jpg"},
+  {t:"Light in August",a:"William Faulkner",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8496792-M.jpg"},
+  {t:"Jonathan Livingston Seagull",a:"Richard Bach",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6522230-M.jpg"},
+  {t:"India's Struggle for Independence",a:"Bipan Chandra",g:"History",c:"https://covers.openlibrary.org/b/id/9800209-M.jpg"},
+  {t:"Made to Stick",a:"Chip & Dan Heath",g:"Business",c:"https://covers.openlibrary.org/b/id/7004880-M.jpg"},
+  {t:"Things Fall Apart",a:"Chinua Achebe",g:"Fiction",c:"https://covers.openlibrary.org/b/id/5042837-M.jpg"},
+  {t:"The Autumn of the Patriarch",a:"García Márquez",g:"Fiction",c:"https://covers.openlibrary.org/b/id/10097268-M.jpg"},
+  {t:"The Black Swan",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/5721840-M.jpg"},
+  {t:"The Rational Optimist",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/7024445-M.jpg"},
+  {t:"We Measure the Earth with Our Bodies",a:"Tsering Yangzom Lama",g:"Fiction",c:"https://covers.openlibrary.org/b/id/13315121-M.jpg"},
+  {t:"The Melancholy of Resistance",a:"László Krasznahorkai",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7666646-M.jpg"},
+  {t:"What I Talk About When I Talk About Running",a:"Haruki Murakami",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/13185830-M.jpg"},
+  {t:"The Argumentative Indian",a:"Amartya Sen",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/452472-M.jpg"},
+  {t:"Warren Buffett's Ground Rules",a:"Jeremy Miller",g:"Business",c:"https://covers.openlibrary.org/b/id/11195157-M.jpg"},
+  {t:"The Order of Time",a:"Carlo Rovelli",g:"Science & Ideas"},
+  {t:"Reveries of the Solitary Walker",a:"Rousseau",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/9329993-M.jpg"},
+  {t:"Capitalism: A Ghost Story",a:"Arundhati Roy",g:"History",c:"https://covers.openlibrary.org/b/id/7294353-M.jpg"},
+  {t:"The Ascent of Rum Doodle",a:"W.E. Bowman",g:"Fiction",c:"https://covers.openlibrary.org/b/id/450606-M.jpg"},
+  {t:"A Flag on the Island",a:"V.S. Naipaul",g:"Fiction"},
+  {t:"Speed",a:"Vaclav Smil",g:"Science & Ideas"},
+  {t:"Optimism over Despair",a:"Noam Chomsky",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/14851900-M.jpg"},
+  {t:"Home and Away",a:"Karl Ove Knausgaard",g:"Sports & Culture",c:"https://covers.openlibrary.org/b/id/12516508-M.jpg"},
+  {t:"Surely You're Joking, Mr. Feynman!",a:"Richard Feynman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9274698-M.jpg"},
+  {t:"Mara and Dann",a:"Doris Lessing",g:"Fiction",c:"https://covers.openlibrary.org/b/id/22452-M.jpg"},
+  {t:"The Diaries of Franz Kafka",a:"Franz Kafka",g:"Fiction",c:"https://covers.openlibrary.org/b/id/997423-M.jpg"},
+  {t:"Things I Have Learned",a:"Stefan Sagmeister",g:"Design",c:"https://covers.openlibrary.org/b/id/2646415-M.jpg"},
+  {t:"India: A Wounded Civilization",a:"V.S. Naipaul",g:"History",c:"https://covers.openlibrary.org/b/id/4648257-M.jpg"},
+  {t:"The Story of Philosophy",a:"Will Durant",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/405360-M.jpg"},
+  {t:"Ivanhoe",a:"Sir Walter Scott",g:"Fiction",c:"https://covers.openlibrary.org/b/id/1956783-M.jpg"},
+  {t:"The Mill on the Floss",a:"George Eliot",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6655232-M.jpg"},
+  {t:"The Psychology of Love",a:"Sigmund Freud",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8242841-M.jpg"},
+  {t:"Medieval Technology and Social Change",a:"Lynn White",g:"History",c:"https://covers.openlibrary.org/b/id/9578569-M.jpg"},
+  {t:"Aesthetic Theory",a:"Theodor Adorno",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/7257218-M.jpg"},
+  {t:"The Aye-Aye and I",a:"Gerald Durrell",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/5072755-M.jpg"},
+  {t:"The Warren Buffett Way",a:"Robert Hagstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/9700984-M.jpg"},
+  {t:"The Everything Store",a:"Brad Stone",g:"Business",c:"https://covers.openlibrary.org/b/id/7264584-M.jpg"},
+  {t:"The Hindi Heartland",a:"Ghazala Wahab",g:"History"},
+  {t:"Is a River Alive?",a:"Robert Macfarlane",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/14846855-M.jpg"},
+  {t:"The Free Voice",a:"Ravish Kumar",g:"History",c:"https://covers.openlibrary.org/b/id/10871693-M.jpg"},
+  {t:"Interpreting Early India",a:"Romila Thapar",g:"History",c:"https://covers.openlibrary.org/b/id/13499504-M.jpg"},
+  {t:"Paro: Dreams of Passion",a:"Namita Gokhale",g:"Fiction",c:"https://covers.openlibrary.org/b/id/1117125-M.jpg"},
+  {t:"Talks with Students",a:"J. Krishnamurti",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/4059520-M.jpg"},
+  {t:"Mother Mary Comes to Me",a:"Arundhati Roy",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14981460-M.jpg"},
+  {t:"The Scaling Era",a:"Dwarkesh Patel",g:"Science & Ideas"},
+  {t:"Becoming Goan",a:"Mendonça Bambawale",g:"History"},
+  {t:"Poverty and Income Distribution in India",a:"Abhijit Banerjee",g:"Economics"},
+  {t:"Scoop!",a:"Kuldip Nayar",g:"History",c:"https://covers.openlibrary.org/b/id/1046216-M.jpg"},
+  {t:"Why Nobody Understands Quantum Physics",a:"Frank Verstraete",g:"Science & Ideas"},
+  {t:"Marx Engels Selected Works",a:"Marx & Engels",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/11048623-M.jpg"},
+  {t:"Fifty Great Contemporary Thinkers",a:"John Lechte",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/1216392-M.jpg"},
+  {t:"An Introduction to Indian Philosophy",a:"",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/14905654-M.jpg"},
+  {t:"The Nagas",a:"",g:"History",c:"https://covers.openlibrary.org/b/id/6917318-M.jpg"},
+  {t:"A History of South India",a:"K.A.N. Sastri",g:"History"},
+  {t:"The Greening of America",a:"Charles A. Reich",g:"History",c:"https://covers.openlibrary.org/b/id/7889534-M.jpg"},
+  {t:"The Age of Atrocity",a:"Lawrence Langer",g:"History",c:"https://covers.openlibrary.org/b/id/4421304-M.jpg"},
+  {t:"Orwell",a:"Raymond Williams",g:"Literature",c:"https://covers.openlibrary.org/b/id/13175019-M.jpg"},
+  {t:"Hawthorne & History",a:"J. Hillis Miller",g:"Literature",c:"https://covers.openlibrary.org/b/id/12307847-M.jpg"},
+  {t:"Theory of Meaning",a:"Lehrer & Lehrer",g:"Philosophy"},
+];
+
+// Seeded random
+let seed = 42;
+function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+
+const sky = document.getElementById('sky');
+
+// Layout
+const COLS = Math.max(6, Math.ceil(Math.sqrt(B.length * 1.4)));
+const ROWS = Math.ceil(B.length / COLS);
+const CELL_W = 160, CELL_H = 150;
+const SKY_W = COLS * CELL_W + 200;
+const SKY_H = ROWS * CELL_H + 200;
+sky.style.width = SKY_W + 'px';
+sky.style.height = SKY_H + 'px';
+
+// Shuffle
+const shuffled = [...B];
+for (let i = shuffled.length - 1; i > 0; i--) {
+  const j = Math.floor(rand() * (i + 1));
+  [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+}
+
+// Place books
+const bookEls = [];
+shuffled.forEach((book, i) => {
+  const col = i % COLS;
+  const row = Math.floor(i / COLS);
+  const baseX = 100 + col * CELL_W + CELL_W / 2;
+  const baseY = 100 + row * CELL_H + CELL_H / 2;
+  const jitterX = (rand() - 0.5) * 100;
+  const jitterY = (rand() - 0.5) * 80;
+  const cx = baseX + jitterX;
+  const cy = baseY + jitterY;
+
+  const floatDur = 5 + rand() * 6;
+  const floatDel = -rand() * 8;
+  const floatY = -(3 + rand() * 5);
+
+  const el = document.createElement('div');
+  el.className = 'book';
+  el.style.left = cx + 'px';
+  el.style.top = cy + 'px';
+
+  const coverHTML = book.c
+    ? '<img src="' + book.c + '" alt="" loading="lazy">'
+    : '<div class="ph-mini">' + book.t + '</div>';
+
+  el.innerHTML =
+    '<div class="book-inner" style="' +
+      '--float-dur:' + floatDur.toFixed(1) + 's;' +
+      '--float-del:' + floatDel.toFixed(1) + 's;' +
+      '--float-y:' + floatY.toFixed(1) + 'px;' +
+    '">' +
+      '<div class="book-cover">' + coverHTML + '</div>' +
+      '<div class="book-label">' +
+        '<div class="bl-title">' + book.t + '</div>' +
+        (book.a ? '<div class="bl-author">' + book.a + '</div>' : '') +
+      '</div>' +
+    '</div>';
+
+  el.addEventListener('click', () => openModal(book));
+  el.addEventListener('mouseenter', () => {
+    bookEls.forEach(other => {
+      if (other.el === el) return;
+      const dx = other.x - cx, dy = other.y - cy;
+      if (dx * dx + dy * dy < 35000) other.el.classList.add('dimmed');
+    });
+  });
+  el.addEventListener('mouseleave', () => {
+    bookEls.forEach(other => other.el.classList.remove('dimmed'));
+  });
+
+  sky.appendChild(el);
+  bookEls.push({ el, x: cx, y: cy });
+});
+
+// Auto-reveal
+let allRevealed = false;
+function startAutoReveal() {
+  function revealRandom() {
+    if (allRevealed) return;
+    const vw = window.innerWidth, vh = window.innerHeight, margin = 60;
+    const visible = bookEls.filter(s => {
+      const sx = s.x + px, sy = s.y + py;
+      return sx > -margin && sx < vw + margin && sy > -margin && sy < vh + margin;
+    });
+    const pool = visible.length > 0 ? visible : bookEls;
+    const s = pool[Math.floor(Math.random() * pool.length)];
+    if (!s.el.classList.contains('auto-reveal')) {
+      s.el.classList.add('auto-reveal');
+      setTimeout(() => s.el.classList.remove('auto-reveal'), 2000 + Math.random() * 1000);
+    }
+    setTimeout(revealRandom, 2000 + Math.random() * 3000);
+  }
+  setTimeout(revealRandom, 1000);
+}
+startAutoReveal();
+
+// Pan
+let px = -(SKY_W / 2 - window.innerWidth / 2);
+let py = -(SKY_H / 2 - window.innerHeight / 2);
+
+function clamp() {
+  const minX = -(SKY_W - window.innerWidth), minY = -(SKY_H - window.innerHeight);
+  if (SKY_W <= window.innerWidth) px = -(SKY_W - window.innerWidth) / 2;
+  else px = Math.min(0, Math.max(minX, px));
+  if (SKY_H <= window.innerHeight) py = -(SKY_H - window.innerHeight) / 2;
+  else py = Math.min(0, Math.max(minY, py));
+}
+
+function renderPos() {
+  clamp();
+  sky.style.transform = 'translate(' + px + 'px,' + py + 'px)';
+  // Update shader parallax
+  uniforms.uPan.value.set(
+    px / window.innerWidth,
+    py / window.innerHeight
+  );
+}
+renderPos();
+
+// Drag
+let dragging = false, sx, sy, didDrag = false;
+document.addEventListener('mousedown', e => {
+  if (e.target.closest('.modal-bg') || e.target.closest('.book-label') || e.target.closest('#title')) return;
+  dragging = true; didDrag = false;
+  sx = e.clientX - px; sy = e.clientY - py;
+});
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  didDrag = true;
+  px = e.clientX - sx; py = e.clientY - sy; renderPos();
+});
+document.addEventListener('mouseup', () => { dragging = false; });
+
+document.addEventListener('touchstart', e => {
+  if (e.target.closest('.modal-bg') || e.target.closest('.book-label') || e.target.closest('#title')) return;
+  dragging = true; didDrag = false;
+  sx = e.touches[0].clientX - px; sy = e.touches[0].clientY - py;
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!dragging) return; didDrag = true;
+  px = e.touches[0].clientX - sx; py = e.touches[0].clientY - sy; renderPos();
+}, { passive: true });
+document.addEventListener('touchend', () => { dragging = false; });
+
+document.addEventListener('wheel', e => {
+  if (document.querySelector('.modal-bg.open')) return;
+  px -= e.deltaX; py -= e.deltaY; renderPos();
+}, { passive: true });
+
+// Modal
+function openModal(book) {
+  if (didDrag) return;
+  const m = document.getElementById('modal');
+  m.innerHTML =
+    '<button class="modal-x" onclick="document.getElementById(\'mbg\').classList.remove(\'open\')">&times;</button>' +
+    (book.c
+      ? '<img class="modal-img" src="' + book.c + '" alt="">'
+      : '<div class="modal-ph">' + book.t + '</div>') +
+    '<h2>' + book.t + '</h2>' +
+    (book.a ? '<div class="ma">' + book.a + '</div>' : '<div class="ma"></div>') +
+    '<div class="mg">' + book.g + '</div>';
+  document.getElementById('mbg').classList.add('open');
+}
+document.getElementById('mbg').addEventListener('click', e => {
+  if (e.target === document.getElementById('mbg')) document.getElementById('mbg').classList.remove('open');
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('mbg').classList.remove('open'); });
+
+// Show All
+const showBtn = document.getElementById('show-all');
+const GRID_CELL_W = 120, GRID_CELL_H = 160;
+const GRID_COLS = Math.ceil(Math.sqrt(bookEls.length * (GRID_CELL_H / GRID_CELL_W)));
+
+showBtn.addEventListener('click', () => {
+  allRevealed = !allRevealed;
+  sky.classList.toggle('sky-revealed', allRevealed);
+  showBtn.textContent = allRevealed ? 'Hide All' : 'Show All';
+
+  if (allRevealed) {
+    const GRID_ROWS = Math.ceil(bookEls.length / GRID_COLS);
+    const totalGridW = GRID_COLS * GRID_CELL_W;
+    const totalGridH = GRID_ROWS * GRID_CELL_H + 200;
+    const newW = Math.max(SKY_W, totalGridW + 200);
+    const newH = Math.max(SKY_H, totalGridH);
+    sky.style.width = newW + 'px';
+    sky.style.height = newH + 'px';
+    const offsetX = (newW - totalGridW) / 2;
+    const offsetY = 100;
+    bookEls.forEach((s, i) => {
+      const col = i % GRID_COLS;
+      const row = Math.floor(i / GRID_COLS);
+      s.el.style.left = (offsetX + col * GRID_CELL_W + GRID_CELL_W / 2) + 'px';
+      s.el.style.top = (offsetY + row * GRID_CELL_H + GRID_CELL_H / 2) + 'px';
+    });
+  } else {
+    sky.style.width = SKY_W + 'px';
+    sky.style.height = SKY_H + 'px';
+    bookEls.forEach(s => { s.el.style.left = s.x + 'px'; s.el.style.top = s.y + 'px'; });
+  }
+  const sw = parseInt(sky.style.width), sh = parseInt(sky.style.height);
+  px = -(sw / 2 - window.innerWidth / 2);
+  py = -(sh / 2 - window.innerHeight / 2);
+  renderPos();
+});
+
+// Prevent pinch zoom
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+document.addEventListener('gesturechange', e => e.preventDefault(), { passive: false });
+document.addEventListener('gestureend', e => e.preventDefault(), { passive: false });
+</script>
+</body>
+</html>

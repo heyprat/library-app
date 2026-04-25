@@ -198,6 +198,27 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
   user-select:all;
 }
 
+/* Top nav */
+.top-nav{
+  position:fixed;top:20px;right:20px;z-index:100;
+  display:none;gap:10px;align-items:center;
+}
+.top-nav.visible{display:flex}
+.top-nav a, .top-nav button{
+  background:rgba(212,200,168,.04);
+  border:1px solid rgba(212,200,168,.1);
+  color:rgba(212,200,168,.4);
+  font-family:'DM Sans',sans-serif;
+  font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:7px 16px;border-radius:100px;
+  cursor:pointer;transition:all .2s;text-decoration:none;
+}
+.top-nav a:hover, .top-nav button:hover{
+  color:rgba(212,200,168,.8);
+  border-color:rgba(212,200,168,.3);
+  background:rgba(212,200,168,.06);
+}
+
 /* Spinner */
 .spinner-sm{
   width:16px;height:16px;border-radius:50%;
@@ -211,6 +232,11 @@ input[type="text"]:focus{border-color:rgba(212,200,168,.4)}
 </style>
 </head>
 <body>
+
+<div class="top-nav" id="top-nav">
+  <a id="nav-my-sky" href="#">My Sky</a>
+  <button id="nav-logout">Sign Out</button>
+</div>
 
 <iframe id="sky-bg" src="/orbit.html?bg" tabindex="-1" aria-hidden="true"></iframe>
 <div id="sky-overlay"></div>
@@ -385,6 +411,24 @@ if (MOCK) {
     }
   }
 
+  // --- Top nav (logout + my sky link) ---
+  function showTopNav() {
+    const nav = document.getElementById('top-nav');
+    nav.classList.add('visible');
+    if (userProfile?.username) {
+      const skyLink = document.getElementById('nav-my-sky');
+      skyLink.href = '/sky/' + userProfile.username;
+      skyLink.style.display = '';
+    } else {
+      document.getElementById('nav-my-sky').style.display = 'none';
+    }
+  }
+
+  document.getElementById('nav-logout').addEventListener('click', async () => {
+    if (!MOCK) await signOut();
+    window.location.href = '/onboard';
+  });
+
   // --- Check if already signed in ---
   if (!MOCK) {
     try {
@@ -400,9 +444,11 @@ if (MOCK) {
 
         if (profile) {
           userProfile = profile;
+          showTopNav();
           showStep('upload');
         } else {
           document.getElementById('input-display').value = user.user_metadata?.full_name || '';
+          showTopNav();
           showStep('username');
         }
       }
@@ -446,6 +492,7 @@ if (MOCK) {
       await new Promise(r => setTimeout(r, 400));
       userProfile = { username, display_name: displayName };
       btnUsername.textContent = 'Continue';
+      showTopNav();
       showStep('upload');
       return;
     }
@@ -474,6 +521,7 @@ if (MOCK) {
 
       if (error) throw error;
       userProfile = { username, display_name: displayName };
+      showTopNav();
       showStep('upload');
     } catch (e) {
       usernameHint.className = 'input-error';

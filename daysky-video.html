@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Day Sky — Video</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;height:100%;font-family:'DM Sans',sans-serif;user-select:none;background:#0a0a12}
+
+/* Video background */
+.video-layer{
+  position:fixed;inset:0;z-index:0;overflow:hidden;
+}
+.video-layer video{
+  position:absolute;top:50%;left:50%;
+  min-width:100%;min-height:100%;
+  width:auto;height:auto;
+  transform:translate(-50%,-50%);
+  object-fit:cover;
+  transition:opacity 1.5s ease;
+}
+.video-layer video.hidden{opacity:0}
+.video-layer video.active{opacity:1}
+
+/* Gradient overlay to soften edges */
+.sky-overlay{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(ellipse at 50% 0%, transparent 60%, rgba(0,0,0,0.15) 100%),
+    linear-gradient(to bottom, transparent 85%, rgba(0,0,0,0.1) 100%);
+}
+
+/* Rain overlay */
+.rain-container{
+  position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden;display:none;
+}
+.rain-drop{
+  position:absolute;width:1px;background:linear-gradient(to bottom,transparent,rgba(174,194,224,0.5));
+  animation:rain-fall linear infinite;
+}
+@keyframes rain-fall{
+  0%{transform:translateY(-100vh)}
+  100%{transform:translateY(100vh)}
+}
+
+/* Snow overlay */
+.snow-container{
+  position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden;display:none;
+}
+.snowflake{
+  position:absolute;width:4px;height:4px;background:white;border-radius:50%;
+  opacity:0.8;filter:blur(1px);
+  animation:snow-fall linear infinite;
+}
+@keyframes snow-fall{
+  0%{transform:translateY(-20px) translateX(0)}
+  25%{transform:translateY(25vh) translateX(10px)}
+  50%{transform:translateY(50vh) translateX(-5px)}
+  75%{transform:translateY(75vh) translateX(15px)}
+  100%{transform:translateY(100vh) translateX(0)}
+}
+
+/* Lightning flash */
+.lightning{
+  position:fixed;inset:0;z-index:3;pointer-events:none;
+  background:rgba(220,225,240,0);transition:background .05s;
+}
+.lightning.flash{background:rgba(220,225,240,0.2)}
+
+/* Fog overlay */
+.fog-container{
+  position:fixed;inset:0;z-index:2;pointer-events:none;display:none;
+}
+.fog-layer{
+  position:absolute;inset:0;
+  background:linear-gradient(to bottom,
+    rgba(200,210,220,0.0) 0%,
+    rgba(200,210,220,0.15) 30%,
+    rgba(200,210,220,0.25) 50%,
+    rgba(200,210,220,0.15) 70%,
+    rgba(200,210,220,0.0) 100%
+  );
+  animation:fog-drift 30s ease-in-out infinite alternate;
+}
+.fog-layer:nth-child(2){animation-duration:40s;animation-direction:alternate-reverse;opacity:0.7}
+@keyframes fog-drift{
+  0%{transform:translateX(-3%)}
+  100%{transform:translateX(3%)}
+}
+
+/* Book layer */
+#sky{position:absolute;top:0;left:0;will-change:transform;z-index:5;cursor:grab}
+#sky:active{cursor:grabbing}
+
+/* Title */
+#title{position:fixed;top:24px;left:0;right:0;text-align:center;z-index:10;pointer-events:none}
+#title h1{
+  font-family:'Instrument Serif',serif;font-size:1.6rem;font-weight:400;letter-spacing:.02em;
+  color:var(--ui-title,rgba(255,255,255,0.95));
+  text-shadow:0 1px 12px var(--ui-shadow,rgba(0,0,0,0.3));
+  transition:color .8s;
+}
+#title .sub{
+  font-size:.6rem;color:var(--ui-sub,rgba(255,255,255,0.55));
+  margin-top:6px;letter-spacing:.2em;text-transform:uppercase;font-weight:400;
+  transition:color .8s;
+}
+#weather-info{
+  display:inline-block;margin-top:8px;padding:4px 14px;
+  font-size:.5rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ui-sub,rgba(255,255,255,0.5));
+  border:1px solid var(--ui-border,rgba(255,255,255,0.15));
+  border-radius:100px;
+  background:var(--ui-btn-bg,rgba(255,255,255,0.08));
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  transition:all .8s;
+}
+#show-all{
+  margin-top:6px;padding:5px 16px;
+  background:var(--ui-btn-bg,rgba(255,255,255,0.1));
+  color:var(--ui-btn,rgba(255,255,255,0.7));
+  border:1px solid var(--ui-border,rgba(255,255,255,0.2));
+  border-radius:100px;font-size:.55rem;cursor:pointer;
+  pointer-events:all;transition:all .3s;font-family:'DM Sans',sans-serif;
+  letter-spacing:.15em;text-transform:uppercase;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+#show-all:hover{opacity:.8}
+
+/* Book covers */
+.book{position:absolute;transform:translate(-50%,-50%);cursor:pointer;transition:left .8s ease,top .8s ease}
+.book:hover{z-index:500}
+.book.dimmed{opacity:.3;transition:opacity .3s}
+.book-inner{
+  position:relative;
+  animation:float var(--float-dur,8s) ease-in-out var(--float-del,0s) infinite alternate;
+}
+.book-cover{
+  width:48px;height:68px;border-radius:4px;overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,0.2),0 1px 6px rgba(0,0,0,0.15);
+  transition:transform .4s ease,box-shadow .3s ease;
+}
+.book-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.book-cover .ph-mini{
+  width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.2);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  font-size:7px;color:rgba(255,255,255,0.8);padding:4px;text-align:center;line-height:1.2;
+  font-family:'Instrument Serif',serif;
+}
+@keyframes float{0%{transform:translateY(0)}100%{transform:translateY(var(--float-y,-5px))}}
+
+.book:hover .book-cover{transform:scale(1.6);box-shadow:0 8px 35px rgba(0,0,0,0.3)}
+.book:hover .book-label{opacity:1;transform:translateX(-50%) translateY(0)}
+.book.auto-reveal .book-cover{transform:scale(1.4)}
+.book.auto-reveal .book-label{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.book-label{
+  position:absolute;top:100%;left:50%;transform:translateX(-50%) translateY(4px);
+  margin-top:8px;opacity:0;transition:opacity .4s ease,transform .4s ease;
+  text-align:center;pointer-events:none;white-space:nowrap;
+}
+.book-label .bl-title{
+  font-size:9px;font-weight:500;
+  color:var(--label-color,rgba(255,255,255,0.95));
+  text-shadow:0 1px 8px rgba(0,0,0,0.5),0 0 20px rgba(0,0,0,0.3);
+  max-width:100px;overflow:hidden;text-overflow:ellipsis;
+}
+.book-label .bl-author{
+  font-size:8px;
+  color:var(--label-sub,rgba(255,255,255,0.65));
+  text-shadow:0 1px 8px rgba(0,0,0,0.5);
+}
+
+/* Show All */
+.sky-revealed .book-cover{transform:scale(1)!important}
+.sky-revealed .book-label{opacity:1!important;transform:translateX(-50%) translateY(0)!important}
+
+/* Modal */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .3s;z-index:100;
+}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{
+  background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-radius:16px;padding:32px;max-width:320px;text-align:center;
+  box-shadow:0 12px 50px rgba(0,0,0,0.3);position:relative;
+  transform:translateY(20px);transition:transform .3s;
+}
+.modal-bg.open .modal{transform:translateY(0)}
+.modal-x{position:absolute;top:10px;right:14px;background:none;border:none;font-size:22px;color:rgba(30,50,90,0.35);cursor:pointer}
+.modal-x:hover{color:rgba(30,50,90,0.8)}
+.modal-img{width:120px;height:170px;object-fit:cover;border-radius:6px;box-shadow:0 3px 12px rgba(0,0,0,0.15)}
+.modal-ph{width:120px;height:170px;margin:0 auto;display:flex;align-items:center;justify-content:center;background:rgba(30,50,90,0.06);border-radius:6px;font-size:14px;color:rgba(30,50,90,0.5);padding:12px}
+.modal h2{margin-top:16px;font-size:18px;font-weight:600;color:rgba(30,50,90,0.9)}
+.modal .ma{font-size:14px;color:rgba(30,50,90,0.55);margin-top:4px}
+.modal .mg{display:inline-block;margin-top:10px;padding:3px 12px;font-size:11px;background:rgba(30,50,90,0.08);color:rgba(30,50,90,0.6);border-radius:12px}
+
+#city-picker{position:fixed;bottom:28px;left:28px;z-index:60;display:flex;align-items:center;gap:8px}
+#city-picker label{font-size:.5rem;letter-spacing:.15em;text-transform:uppercase;color:var(--ui-sub,rgba(255,255,255,0.5));white-space:nowrap}
+#city-select{appearance:none;-webkit-appearance:none;background:var(--ui-btn-bg,rgba(255,255,255,0.1));color:var(--ui-btn,rgba(255,255,255,0.7));border:1px solid var(--ui-border,rgba(255,255,255,0.15));border-radius:100px;padding:6px 28px 6px 14px;font-size:.6rem;font-family:'DM Sans',sans-serif;letter-spacing:.08em;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:all .3s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(180,190,220,0.5)'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+#city-select:hover{opacity:.85}
+#city-select option{background:#2a2d3a;color:#ccc}
+
+@media(max-width:600px){
+  #title h1{font-size:1.2rem}
+  .book-cover{width:40px;height:56px}
+  #city-picker{bottom:20px;left:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- Sky video background -->
+<div class="video-layer" id="video-layer"></div>
+<div class="sky-overlay"></div>
+
+<!-- Weather effects -->
+<div class="rain-container" id="rain"></div>
+<div class="snow-container" id="snow"></div>
+<div class="lightning" id="lightning"></div>
+<div class="fog-container" id="fog">
+  <div class="fog-layer"></div>
+  <div class="fog-layer"></div>
+</div>
+
+<!-- Books -->
+<div id="sky"></div>
+
+<!-- UI -->
+<div id="title">
+  <h1>Pratyush's Library</h1>
+  <div class="sub">hover to reveal · drag to explore</div>
+  <div id="weather-info">detecting weather...</div>
+  <br>
+  <button id="show-all">Show All</button>
+</div>
+
+<div id="city-picker">
+  <label for="city-select">City</label>
+  <select id="city-select">
+    <option value="">My Location</option>
+    <option value="28.61,77.21,New Delhi">New Delhi</option>
+    <option value="19.08,72.88,Mumbai">Mumbai</option>
+    <option value="15.50,73.83,Goa">Goa</option>
+    <option value="40.71,-74.01,New York">New York</option>
+    <option value="51.51,-0.13,London">London</option>
+    <option value="48.86,2.35,Paris">Paris</option>
+    <option value="35.68,139.69,Tokyo">Tokyo</option>
+    <option value="55.76,37.62,Moscow">Moscow</option>
+    <option value="-33.87,151.21,Sydney">Sydney</option>
+    <option value="25.20,55.27,Dubai">Dubai</option>
+    <option value="64.15,-21.94,Reykjavik">Reykjavik</option>
+    <option value="1.35,103.82,Singapore">Singapore</option>
+    <option value="-22.91,-43.17,Rio de Janeiro">Rio de Janeiro</option>
+    <option value="37.57,126.98,Seoul">Seoul</option>
+    <option value="59.33,18.07,Stockholm">Stockholm</option>
+    <option value="13.76,100.50,Bangkok">Bangkok</option>
+    <option value="-1.29,36.82,Nairobi">Nairobi</option>
+    <option value="30.04,31.24,Cairo">Cairo</option>
+    <option value="60.17,24.94,Helsinki">Helsinki</option>
+    <option value="-34.60,-58.38,Buenos Aires">Buenos Aires</option>
+  </select>
+</div>
+
+<div class="modal-bg" id="mbg"><div class="modal" id="modal"></div></div>
+
+<script>
+// ===== Video sky configuration =====
+const VIDEO_CDN = 'https://assets.mixkit.co/videos';
+
+// Weather condition → video mapping
+// Each condition has a primary video + optional fallback
+const SKY_VIDEOS = {
+  clear:    { id: 26108, label: 'Clear Sky' },       // blue sky, drifting clouds
+  cloudy:   { id: 118,   label: 'Cloudy' },           // cloudy sky
+  overcast: { id: 21576, label: 'Overcast' },         // dark heavy clouds
+  fog:      { id: 28341, label: 'Foggy' },             // aerial cloud forest, misty
+  rain:     { id: 22728, label: 'Rain' },              // raining in forest
+  snow:     { id: 3352,  label: 'Snow' },              // snowfall
+  storm:    { id: 4422,  label: 'Thunderstorm' },      // thunderstorm at night
+  sunset:   { id: 4119,  label: 'Sunset' },            // sunset sky
+  sunrise:  { id: 516,   label: 'Sunrise' },           // sunrise sky
+  night:    { id: 4148,  label: 'Night' },             // milky way, mountain silhouettes
+  twilight: { id: 49694, label: 'Twilight' },          // dusk/twilight
+};
+
+function videoUrl(id) {
+  return VIDEO_CDN + '/' + id + '/' + id + '-1080.mp4';
+}
+
+// ===== Weather detection =====
+// WMO codes → sky condition mapping
+function wmoToCondition(code, isDay) {
+  if (code <= 1) return isDay ? 'clear' : 'night';
+  if (code <= 2) return 'cloudy';
+  if (code <= 3) return 'overcast';
+  if (code <= 48) return 'fog';
+  if (code <= 57) return 'rain';    // drizzle
+  if (code <= 67) return 'rain';
+  if (code <= 77) return 'snow';
+  if (code <= 82) return 'rain';    // showers
+  if (code <= 86) return 'snow';    // snow showers
+  return 'storm';                   // thunderstorm
+}
+
+// Check if near sunrise/sunset (within 40 min)
+function getSunPhase(sunrise, sunset, now) {
+  const sr = new Date(sunrise).getTime();
+  const ss = new Date(sunset).getTime();
+  const t = now.getTime();
+  const window = 40 * 60 * 1000; // 40 minutes
+
+  if (Math.abs(t - sr) < window) return 'sunrise';
+  if (Math.abs(t - ss) < window) return 'sunset';
+  // Twilight: 40-80 min after sunset
+  if (t > ss && t < ss + window * 2) return 'twilight';
+  if (t < sr && t > sr - window) return 'sunrise';
+  return null;
+}
+
+// ===== Video management =====
+const videoLayer = document.getElementById('video-layer');
+let activeVideo = null;
+
+function loadVideo(condition) {
+  const cfg = SKY_VIDEOS[condition] || SKY_VIDEOS.clear;
+  const url = videoUrl(cfg.id);
+
+  const video = document.createElement('video');
+  video.src = url;
+  video.loop = true;
+  video.muted = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  video.className = 'hidden';
+  video.crossOrigin = 'anonymous';
+
+  video.addEventListener('canplay', () => {
+    video.play();
+    // Crossfade
+    requestAnimationFrame(() => {
+      video.classList.remove('hidden');
+      video.classList.add('active');
+    });
+    // Remove old video after transition
+    if (activeVideo && activeVideo !== video) {
+      const old = activeVideo;
+      old.classList.remove('active');
+      old.classList.add('hidden');
+      setTimeout(() => { if (old.parentNode) old.parentNode.removeChild(old); }, 2000);
+    }
+    activeVideo = video;
+  }, { once: true });
+
+  video.addEventListener('error', () => {
+    console.warn('Video failed to load:', url);
+    // Fallback: use CSS gradient
+    videoLayer.style.background = getGradientFallback(condition);
+  });
+
+  videoLayer.appendChild(video);
+  return cfg.label;
+}
+
+function getGradientFallback(condition) {
+  const gradients = {
+    clear:    'linear-gradient(180deg, #1a8fe3 0%, #4aa8ec 30%, #7cc2f3 55%, #b8ddf7 75%, #e8f4fd 100%)',
+    cloudy:   'linear-gradient(180deg, #5a7a9a 0%, #8a9fb5 40%, #b0c4d8 70%, #c8d8e8 100%)',
+    overcast: 'linear-gradient(180deg, #4a5a6a 0%, #6a7a8a 40%, #8a9aa8 70%, #9aabb8 100%)',
+    fog:      'linear-gradient(180deg, #8a95a0 0%, #a0aab5 40%, #b5bfc8 70%, #c8d0d8 100%)',
+    rain:     'linear-gradient(180deg, #3a4a5a 0%, #5a6a7a 40%, #7a8a98 70%, #8a9aa8 100%)',
+    snow:     'linear-gradient(180deg, #7a8a9a 0%, #9aaabb 40%, #b8c8d8 70%, #d0dce8 100%)',
+    storm:    'linear-gradient(180deg, #2a3540 0%, #3a4a58 40%, #4a5a68 70%, #5a6a78 100%)',
+    sunset:   'linear-gradient(180deg, #1a3a6a 0%, #6a3a5a 25%, #d07040 50%, #e8a050 75%, #f0c870 100%)',
+    sunrise:  'linear-gradient(180deg, #1a2a50 0%, #4a3a6a 25%, #8a5070 50%, #d08060 75%, #e8b070 100%)',
+    twilight: 'linear-gradient(180deg, #0a1525 0%, #1a2a45 30%, #3a3a5a 60%, #5a4a6a 100%)',
+  };
+  return gradients[condition] || gradients.clear;
+}
+
+// ===== Weather effects =====
+function startRain(intensity) {
+  const container = document.getElementById('rain');
+  container.style.display = 'block';
+  const count = intensity === 'heavy' ? 200 : intensity === 'medium' ? 120 : 60;
+  for (let i = 0; i < count; i++) {
+    const drop = document.createElement('div');
+    drop.className = 'rain-drop';
+    drop.style.left = (Math.random() * 100) + '%';
+    drop.style.height = (15 + Math.random() * 25) + 'px';
+    drop.style.animationDuration = (0.4 + Math.random() * 0.4) + 's';
+    drop.style.animationDelay = (-Math.random() * 2) + 's';
+    drop.style.opacity = 0.3 + Math.random() * 0.4;
+    container.appendChild(drop);
+  }
+}
+
+function startSnow() {
+  const container = document.getElementById('snow');
+  container.style.display = 'block';
+  for (let i = 0; i < 100; i++) {
+    const flake = document.createElement('div');
+    flake.className = 'snowflake';
+    flake.style.left = (Math.random() * 100) + '%';
+    const size = 2 + Math.random() * 5;
+    flake.style.width = size + 'px';
+    flake.style.height = size + 'px';
+    flake.style.animationDuration = (4 + Math.random() * 6) + 's';
+    flake.style.animationDelay = (-Math.random() * 10) + 's';
+    flake.style.opacity = 0.4 + Math.random() * 0.5;
+    container.appendChild(flake);
+  }
+}
+
+function startLightning() {
+  const el = document.getElementById('lightning');
+  function flash() {
+    el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 80);
+    setTimeout(() => {
+      el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 50);
+    }, 150);
+    setTimeout(flash, 4000 + Math.random() * 12000);
+  }
+  setTimeout(flash, 2000 + Math.random() * 5000);
+}
+
+function startFog() {
+  document.getElementById('fog').style.display = 'block';
+}
+
+// ===== Apply weather =====
+function applyWeather(condition, weatherDesc, temp) {
+  loadVideo(condition);
+
+  // Update weather badge
+  const info = document.getElementById('weather-info');
+  info.textContent = weatherDesc || condition;
+
+  // Start effects
+  if (condition === 'rain') startRain('medium');
+  if (condition === 'storm') { startRain('heavy'); startLightning(); }
+  if (condition === 'snow') startSnow();
+  if (condition === 'fog') startFog();
+
+  // Adjust UI colors for dark conditions
+  const darkConditions = ['overcast', 'rain', 'storm', 'twilight', 'night'];
+  if (darkConditions.includes(condition)) {
+    document.body.style.setProperty('--ui-title', 'rgba(220,225,235,0.9)');
+    document.body.style.setProperty('--ui-sub', 'rgba(200,210,225,0.5)');
+    document.body.style.setProperty('--ui-shadow', 'rgba(0,0,0,0.4)');
+    document.body.style.setProperty('--label-color', 'rgba(230,235,245,0.95)');
+    document.body.style.setProperty('--label-sub', 'rgba(200,210,225,0.7)');
+  }
+}
+
+// ===== Fetch weather =====
+async function fetchWeather(lat, lon, cityName) {
+  const resp = await fetch(
+    'https://api.open-meteo.com/v1/forecast?latitude=' + lat +
+    '&longitude=' + lon +
+    '&current=weather_code,is_day,temperature_2m,cloud_cover&daily=sunrise,sunset&timezone=auto&forecast_days=1'
+  );
+  const data = await resp.json();
+  const wc = data.current.weather_code;
+  const isDay = data.current.is_day === 1;
+  const temp = Math.round(data.current.temperature_2m);
+  const dt = new Date(Date.now() + data.utc_offset_seconds * 1000);
+  const now = dt.getUTCHours() * 60 + dt.getUTCMinutes();
+
+  const sunrise = data.daily.sunrise[0];
+  const sunset = data.daily.sunset[0];
+  const sunPhase = getSunPhase(sunrise, sunset, new Date());
+
+  let condition = wmoToCondition(wc, isDay);
+  const wmoDesc = getWmoDescription(wc, isDay);
+
+  // Night with no special weather
+  if (!isDay && !sunPhase && (condition === 'night')) {
+    return { condition: 'night', desc: 'Clear Night', temp, city: cityName };
+  }
+
+  // Sun phase overrides for clear/partly cloudy
+  if (sunPhase && (condition === 'clear' || condition === 'cloudy' || condition === 'night')) {
+    condition = sunPhase;
+  }
+
+  return { condition: condition || 'clear', desc: wmoDesc, temp, city: cityName };
+}
+
+async function initWeather() {
+  try {
+    // Check for city param
+    const cityParam = new URLSearchParams(location.search).get('city');
+    let lat, lon, cityName = '';
+
+    if (cityParam) {
+      const parts = cityParam.split(',');
+      if (parts.length >= 3) {
+        lat = parts[0]; lon = parts[1]; cityName = parts.slice(2).join(',');
+      }
+    }
+
+    if (!lat) {
+      try {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        lat = pos.coords.latitude.toFixed(2);
+        lon = pos.coords.longitude.toFixed(2);
+      } catch (e) {
+        const g = await fetch('https://ipapi.co/json/').then(r => r.json());
+        lat = g.latitude; lon = g.longitude; cityName = g.city || '';
+      }
+    }
+
+    const w = await fetchWeather(lat, lon, cityName);
+
+    // Update badge with city name
+    let badgeText = w.desc;
+    if (w.temp != null) badgeText += ' \u00b7 ' + w.temp + '\u00b0C';
+    if (w.city) badgeText += ' \u00b7 ' + w.city;
+
+    applyWeather(w.condition, badgeText, w.temp);
+
+  } catch (e) {
+    console.warn('Weather detection failed:', e);
+    applyWeather('clear', 'Clear Sky', null);
+  }
+}
+
+function getWmoDescription(code, isDay) {
+  const descs = {
+    0: isDay ? 'Sunny' : 'Clear',
+    1: isDay ? 'Mainly Sunny' : 'Mainly Clear',
+    2: 'Partly Cloudy', 3: 'Cloudy',
+    45: 'Foggy', 48: 'Rime Fog',
+    51: 'Light Drizzle', 53: 'Drizzle', 55: 'Heavy Drizzle',
+    61: 'Light Rain', 63: 'Rain', 65: 'Heavy Rain',
+    71: 'Light Snow', 73: 'Snow', 75: 'Heavy Snow',
+    80: 'Light Showers', 81: 'Showers', 82: 'Heavy Showers',
+    85: 'Snow Showers', 86: 'Heavy Snow Showers',
+    95: 'Thunderstorm', 96: 'Thunderstorm w/ Hail', 99: 'Severe Thunderstorm',
+  };
+  return descs[code] || 'Clear';
+}
+
+initWeather();
+
+// City picker
+const citySelect = document.getElementById('city-select');
+const currentCity = new URLSearchParams(location.search).get('city') || '';
+for (let i = 0; i < citySelect.options.length; i++) {
+  if (citySelect.options[i].value === currentCity) { citySelect.selectedIndex = i; break; }
+}
+citySelect.addEventListener('change', () => {
+  const v = citySelect.value;
+  const u = new URL(location.href);
+  if (v) u.searchParams.set('city', v); else u.searchParams.delete('city');
+  location.href = u.toString();
+});
+
+// ===== Book data =====
+const B=[
+  {t:"Addiction by Design",a:"Natasha Dow Schüll",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/12898178-M.jpg"},
+  {t:"Extreme Economies",a:"Richard Davies",g:"Economics",c:"https://covers.openlibrary.org/b/id/12707846-M.jpg"},
+  {t:"Small Rain",a:"Garth Greenwell",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14744666-M.jpg"},
+  {t:"The Maniac",a:"Benjamín Labatut",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14036185-M.jpg"},
+  {t:"Noise",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10981966-M.jpg"},
+  {t:"Range",a:"David Epstein",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8782615-M.jpg"},
+  {t:"How We Got to Now",a:"Steven Johnson",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9692318-M.jpg"},
+  {t:"The Money Trap",a:"Alok Sama",g:"Business",c:"https://covers.openlibrary.org/b/id/14802826-M.jpg"},
+  {t:"Exhalation",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8793546-M.jpg"},
+  {t:"Small Data",a:"Martin Lindstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/8881323-M.jpg"},
+  {t:"This Is Marketing",a:"Seth Godin",g:"Business",c:"https://covers.openlibrary.org/b/id/14624926-M.jpg"},
+  {t:"How I Built This",a:"Guy Raz",g:"Business",c:"https://covers.openlibrary.org/b/id/10454172-M.jpg"},
+  {t:"Atomic Habits",a:"James Clear",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/12539702-M.jpg"},
+  {t:"Loonshots",a:"Safi Bahcall",g:"Business",c:"https://covers.openlibrary.org/b/id/8518798-M.jpg"},
+  {t:"No Rules Rules",a:"Reed Hastings",g:"Business",c:"https://covers.openlibrary.org/b/id/10524294-M.jpg"},
+  {t:"Guns, Germs, and Steel",a:"Jared Diamond",g:"History",c:"https://covers.openlibrary.org/b/id/7884018-M.jpg"},
+  {t:"Antifragile",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9180157-M.jpg"},
+  {t:"Thinking, Fast and Slow",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/15174454-M.jpg"},
+  {t:"Our Iceberg Is Melting",a:"John Kotter",g:"Business",c:"https://covers.openlibrary.org/b/id/7343706-M.jpg"},
+  {t:"Outliers",a:"Malcolm Gladwell",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10021591-M.jpg"},
+  {t:"Sapiens",a:"Yuval Noah Harari",g:"History",c:"https://covers.openlibrary.org/b/id/8634250-M.jpg"},
+  {t:"Genome",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/1315392-M.jpg"},
+  {t:"The Alchemist",a:"Paulo Coelho",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7414780-M.jpg"},
+  {t:"Change by Design",a:"Tim Brown",g:"Business",c:"https://covers.openlibrary.org/b/id/6305705-M.jpg"},
+  {t:"The Lean Startup",a:"Eric Ries",g:"Business",c:"https://covers.openlibrary.org/b/id/7104760-M.jpg"},
+  {t:"How Innovation Works",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10101301-M.jpg"},
+  {t:"A Strangeness in My Mind",a:"Orhan Pamuk",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8113416-M.jpg"},
+  {t:"An Artist of the Floating World",a:"Kazuo Ishiguro",g:"Fiction",c:"https://covers.openlibrary.org/b/id/4342830-M.jpg"},
+  {t:"Wanderlust",a:"Rebecca Solnit",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/100666-M.jpg"},
+  {t:"A Little History of Economics",a:"Niall Kishtainy",g:"Economics",c:"https://covers.openlibrary.org/b/id/10455766-M.jpg"},
+  {t:"Football in Sun and Shadow",a:"Eduardo Galeano",g:"Sports & Culture",c:"https://covers.openlibrary.org/b/id/11532-M.jpg"},
+  {t:"Switch",a:"Chip & Dan Heath",g:"Business",c:"https://covers.openlibrary.org/b/id/7348937-M.jpg"},
+  {t:"Upside Down",a:"Eduardo Galeano",g:"History",c:"https://covers.openlibrary.org/b/id/580532-M.jpg"},
+  {t:"Mountains of the Mind",a:"Robert Macfarlane",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/8229224-M.jpg"},
+  {t:"Notes from Underground",a:"Fyodor Dostoyevsky",g:"Fiction",c:"https://covers.openlibrary.org/b/id/10445973-M.jpg"},
+  {t:"Underland",a:"Robert Macfarlane",g:"Nature & Travel"},
+  {t:"Indian Summer",a:"Alex von Tunzelmann",g:"History"},
+  {t:"My Friends",a:"Hisham Matar",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14562202-M.jpg"},
+  {t:"Martyr!",a:"Kaveh Akbar",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14562207-M.jpg"},
+  {t:"Shattered Lands",a:"Sam Dalrymple",g:"History"},
+  {t:"Cooked",a:"Michael Pollan",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/2960867-M.jpg"},
+  {t:"Factfulness",a:"Hans Rosling",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8186237-M.jpg"},
+  {t:"Stories of Your Life and Others",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/524046-M.jpg"},
+  {t:"The War of Art",a:"Steven Pressfield",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/288439-M.jpg"},
+  {t:"Behave",a:"Robert Sapolsky",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8814831-M.jpg"},
+  {t:"My Family and Other Animals",a:"Gerald Durrell",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/5547600-M.jpg"},
+  {t:"The Hard Thing About Hard Things",a:"Ben Horowitz",g:"Business",c:"https://covers.openlibrary.org/b/id/7279515-M.jpg"},
+  {t:"21 Lessons for the 21st Century",a:"Yuval Noah Harari",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/13247357-M.jpg"},
+  {t:"The Art of Racing in the Rain",a:"Garth Stein",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6597298-M.jpg"},
+  {t:"Looking for Alaska",a:"John Green",g:"Fiction",c:"https://covers.openlibrary.org/b/id/12614602-M.jpg"},
+  {t:"How to Win Friends and Influence People",a:"Dale Carnegie",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/13314878-M.jpg"},
+  {t:"Sense and Sensibility",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/9278292-M.jpg"},
+  {t:"Pride and Prejudice",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/523015-M.jpg"},
+  {t:"The Wealth of Nations",a:"Adam Smith",g:"Economics",c:"https://covers.openlibrary.org/b/id/12816911-M.jpg"},
+  {t:"Man's Search for Meaning",a:"Viktor Frankl",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/8516506-M.jpg"},
+  {t:"The Class",a:"Erich Segal",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14955402-M.jpg"},
+  {t:"Father Brown Stories",a:"G.K. Chesterton",g:"Fiction",c:"https://covers.openlibrary.org/b/id/94081-M.jpg"},
+  {t:"Light in August",a:"William Faulkner",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8496792-M.jpg"},
+  {t:"Jonathan Livingston Seagull",a:"Richard Bach",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6522230-M.jpg"},
+  {t:"India's Struggle for Independence",a:"Bipan Chandra",g:"History",c:"https://covers.openlibrary.org/b/id/9800209-M.jpg"},
+  {t:"Made to Stick",a:"Chip & Dan Heath",g:"Business",c:"https://covers.openlibrary.org/b/id/7004880-M.jpg"},
+  {t:"Things Fall Apart",a:"Chinua Achebe",g:"Fiction",c:"https://covers.openlibrary.org/b/id/5042837-M.jpg"},
+  {t:"The Autumn of the Patriarch",a:"García Márquez",g:"Fiction",c:"https://covers.openlibrary.org/b/id/10097268-M.jpg"},
+  {t:"The Black Swan",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/5721840-M.jpg"},
+  {t:"The Rational Optimist",a:"Matt Ridley",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/7024445-M.jpg"},
+  {t:"We Measure the Earth with Our Bodies",a:"Tsering Yangzom Lama",g:"Fiction",c:"https://covers.openlibrary.org/b/id/13315121-M.jpg"},
+  {t:"The Melancholy of Resistance",a:"László Krasznahorkai",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7666646-M.jpg"},
+  {t:"What I Talk About When I Talk About Running",a:"Haruki Murakami",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/13185830-M.jpg"},
+  {t:"The Argumentative Indian",a:"Amartya Sen",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/452472-M.jpg"},
+  {t:"Warren Buffett's Ground Rules",a:"Jeremy Miller",g:"Business",c:"https://covers.openlibrary.org/b/id/11195157-M.jpg"},
+  {t:"The Order of Time",a:"Carlo Rovelli",g:"Science & Ideas"},
+  {t:"Reveries of the Solitary Walker",a:"Rousseau",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/9329993-M.jpg"},
+  {t:"Capitalism: A Ghost Story",a:"Arundhati Roy",g:"History",c:"https://covers.openlibrary.org/b/id/7294353-M.jpg"},
+  {t:"The Ascent of Rum Doodle",a:"W.E. Bowman",g:"Fiction",c:"https://covers.openlibrary.org/b/id/450606-M.jpg"},
+  {t:"A Flag on the Island",a:"V.S. Naipaul",g:"Fiction"},
+  {t:"Speed",a:"Vaclav Smil",g:"Science & Ideas"},
+  {t:"Optimism over Despair",a:"Noam Chomsky",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/14851900-M.jpg"},
+  {t:"Home and Away",a:"Karl Ove Knausgaard",g:"Sports & Culture",c:"https://covers.openlibrary.org/b/id/12516508-M.jpg"},
+  {t:"Surely You're Joking, Mr. Feynman!",a:"Richard Feynman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9274698-M.jpg"},
+  {t:"Mara and Dann",a:"Doris Lessing",g:"Fiction",c:"https://covers.openlibrary.org/b/id/22452-M.jpg"},
+  {t:"The Diaries of Franz Kafka",a:"Franz Kafka",g:"Fiction",c:"https://covers.openlibrary.org/b/id/997423-M.jpg"},
+  {t:"Things I Have Learned",a:"Stefan Sagmeister",g:"Design",c:"https://covers.openlibrary.org/b/id/2646415-M.jpg"},
+  {t:"India: A Wounded Civilization",a:"V.S. Naipaul",g:"History",c:"https://covers.openlibrary.org/b/id/4648257-M.jpg"},
+  {t:"The Story of Philosophy",a:"Will Durant",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/405360-M.jpg"},
+  {t:"Ivanhoe",a:"Sir Walter Scott",g:"Fiction",c:"https://covers.openlibrary.org/b/id/1956783-M.jpg"},
+  {t:"The Mill on the Floss",a:"George Eliot",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6655232-M.jpg"},
+  {t:"The Psychology of Love",a:"Sigmund Freud",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8242841-M.jpg"},
+  {t:"Medieval Technology and Social Change",a:"Lynn White",g:"History",c:"https://covers.openlibrary.org/b/id/9578569-M.jpg"},
+  {t:"Aesthetic Theory",a:"Theodor Adorno",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/7257218-M.jpg"},
+  {t:"The Aye-Aye and I",a:"Gerald Durrell",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/5072755-M.jpg"},
+  {t:"The Warren Buffett Way",a:"Robert Hagstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/9700984-M.jpg"},
+  {t:"The Everything Store",a:"Brad Stone",g:"Business",c:"https://covers.openlibrary.org/b/id/7264584-M.jpg"},
+  {t:"The Hindi Heartland",a:"Ghazala Wahab",g:"History"},
+  {t:"Is a River Alive?",a:"Robert Macfarlane",g:"Nature & Travel",c:"https://covers.openlibrary.org/b/id/14846855-M.jpg"},
+  {t:"The Free Voice",a:"Ravish Kumar",g:"History",c:"https://covers.openlibrary.org/b/id/10871693-M.jpg"},
+  {t:"Interpreting Early India",a:"Romila Thapar",g:"History",c:"https://covers.openlibrary.org/b/id/13499504-M.jpg"},
+  {t:"Paro: Dreams of Passion",a:"Namita Gokhale",g:"Fiction",c:"https://covers.openlibrary.org/b/id/1117125-M.jpg"},
+  {t:"Talks with Students",a:"J. Krishnamurti",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/4059520-M.jpg"},
+  {t:"Mother Mary Comes to Me",a:"Arundhati Roy",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14981460-M.jpg"},
+  {t:"The Scaling Era",a:"Dwarkesh Patel",g:"Science & Ideas"},
+  {t:"Becoming Goan",a:"Mendonça Bambawale",g:"History"},
+  {t:"Poverty and Income Distribution in India",a:"Abhijit Banerjee",g:"Economics"},
+  {t:"Scoop!",a:"Kuldip Nayar",g:"History",c:"https://covers.openlibrary.org/b/id/1046216-M.jpg"},
+  {t:"Why Nobody Understands Quantum Physics",a:"Frank Verstraete",g:"Science & Ideas"},
+  {t:"Marx Engels Selected Works",a:"Marx & Engels",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/11048623-M.jpg"},
+  {t:"Fifty Great Contemporary Thinkers",a:"John Lechte",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/1216392-M.jpg"},
+  {t:"An Introduction to Indian Philosophy",a:"",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/14905654-M.jpg"},
+  {t:"The Nagas",a:"",g:"History",c:"https://covers.openlibrary.org/b/id/6917318-M.jpg"},
+  {t:"A History of South India",a:"K.A.N. Sastri",g:"History"},
+  {t:"The Greening of America",a:"Charles A. Reich",g:"History",c:"https://covers.openlibrary.org/b/id/7889534-M.jpg"},
+  {t:"The Age of Atrocity",a:"Lawrence Langer",g:"History",c:"https://covers.openlibrary.org/b/id/4421304-M.jpg"},
+  {t:"Orwell",a:"Raymond Williams",g:"Literature",c:"https://covers.openlibrary.org/b/id/13175019-M.jpg"},
+  {t:"Hawthorne & History",a:"J. Hillis Miller",g:"Literature",c:"https://covers.openlibrary.org/b/id/12307847-M.jpg"},
+  {t:"Theory of Meaning",a:"Lehrer & Lehrer",g:"Philosophy"},
+];
+
+// Seeded random
+let seed = 42;
+function rand() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+
+const sky = document.getElementById('sky');
+const COLS = Math.max(5, Math.ceil(Math.sqrt(B.length * 1.4)));
+const ROWS = Math.ceil(B.length / COLS);
+const CELL_W = 160, CELL_H = 150;
+const SKY_W = COLS * CELL_W + 200;
+const SKY_H = ROWS * CELL_H + 200;
+sky.style.width = SKY_W + 'px';
+sky.style.height = SKY_H + 'px';
+
+// Shuffle
+const shuffled = [...B];
+for (let i = shuffled.length - 1; i > 0; i--) {
+  const j = Math.floor(rand() * (i + 1));
+  [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+}
+
+// Place books
+const bookEls = [];
+shuffled.forEach((book, i) => {
+  const col = i % COLS;
+  const row = Math.floor(i / COLS);
+  const baseX = 100 + col * CELL_W + CELL_W / 2;
+  const baseY = 100 + row * CELL_H + CELL_H / 2;
+  const cx = baseX + (rand() - 0.5) * 100;
+  const cy = baseY + (rand() - 0.5) * 80;
+
+  const el = document.createElement('div');
+  el.className = 'book';
+  el.style.left = cx + 'px';
+  el.style.top = cy + 'px';
+
+  const coverHTML = book.c
+    ? '<img src="' + book.c + '" alt="" loading="lazy">'
+    : '<div class="ph-mini">' + book.t + '</div>';
+
+  el.innerHTML =
+    '<div class="book-inner" style="' +
+      '--float-dur:' + (5 + rand() * 6).toFixed(1) + 's;' +
+      '--float-del:' + (-rand() * 8).toFixed(1) + 's;' +
+      '--float-y:' + (-(3 + rand() * 5)).toFixed(1) + 'px;' +
+    '">' +
+      '<div class="book-cover">' + coverHTML + '</div>' +
+      '<div class="book-label">' +
+        '<div class="bl-title">' + book.t + '</div>' +
+        (book.a ? '<div class="bl-author">' + book.a + '</div>' : '') +
+      '</div>' +
+    '</div>';
+
+  el.addEventListener('click', () => openModal(book));
+  el.addEventListener('mouseenter', () => {
+    bookEls.forEach(o => {
+      if (o.el === el) return;
+      const dx = o.x - cx, dy = o.y - cy;
+      if (dx * dx + dy * dy < 35000) o.el.classList.add('dimmed');
+    });
+  });
+  el.addEventListener('mouseleave', () => bookEls.forEach(o => o.el.classList.remove('dimmed')));
+
+  sky.appendChild(el);
+  bookEls.push({ el, x: cx, y: cy });
+});
+
+// Auto-reveal
+let allRevealed = false;
+(function startAutoReveal() {
+  function tick() {
+    if (allRevealed) return;
+    const vw = window.innerWidth, vh = window.innerHeight, m = 60;
+    const vis = bookEls.filter(s => {
+      const sx = s.x + px, sy = s.y + py;
+      return sx > -m && sx < vw + m && sy > -m && sy < vh + m;
+    });
+    const pool = vis.length > 0 ? vis : bookEls;
+    const s = pool[Math.floor(Math.random() * pool.length)];
+    if (!s.el.classList.contains('auto-reveal')) {
+      s.el.classList.add('auto-reveal');
+      setTimeout(() => s.el.classList.remove('auto-reveal'), 2000 + Math.random() * 1000);
+    }
+    setTimeout(tick, 2000 + Math.random() * 3000);
+  }
+  setTimeout(tick, 1000);
+})();
+
+// Pan
+let px = -(SKY_W / 2 - window.innerWidth / 2);
+let py = -(SKY_H / 2 - window.innerHeight / 2);
+
+function clamp() {
+  const minX = -(SKY_W - window.innerWidth), minY = -(SKY_H - window.innerHeight);
+  if (SKY_W <= window.innerWidth) px = -(SKY_W - window.innerWidth) / 2;
+  else px = Math.min(0, Math.max(minX, px));
+  if (SKY_H <= window.innerHeight) py = -(SKY_H - window.innerHeight) / 2;
+  else py = Math.min(0, Math.max(minY, py));
+}
+function renderPos() { clamp(); sky.style.transform = 'translate(' + px + 'px,' + py + 'px)'; }
+renderPos();
+
+// Drag
+let dragging = false, sx, sy, didDrag = false;
+document.addEventListener('mousedown', e => {
+  if (e.target.closest('.modal-bg') || e.target.closest('#title') || e.target.closest('#city-picker')) return;
+  dragging = true; didDrag = false;
+  sx = e.clientX - px; sy = e.clientY - py;
+});
+document.addEventListener('mousemove', e => { if (!dragging) return; didDrag = true; px = e.clientX - sx; py = e.clientY - sy; renderPos(); });
+document.addEventListener('mouseup', () => dragging = false);
+document.addEventListener('touchstart', e => {
+  if (e.target.closest('.modal-bg') || e.target.closest('#title') || e.target.closest('#city-picker')) return;
+  dragging = true; didDrag = false;
+  sx = e.touches[0].clientX - px; sy = e.touches[0].clientY - py;
+}, { passive: true });
+document.addEventListener('touchmove', e => { if (!dragging) return; didDrag = true; px = e.touches[0].clientX - sx; py = e.touches[0].clientY - sy; renderPos(); }, { passive: true });
+document.addEventListener('touchend', () => dragging = false);
+document.addEventListener('wheel', e => { if (document.querySelector('.modal-bg.open')) return; px -= e.deltaX; py -= e.deltaY; renderPos(); }, { passive: true });
+
+// Modal
+function openModal(book) {
+  if (didDrag) return;
+  const m = document.getElementById('modal');
+  m.innerHTML =
+    '<button class="modal-x" onclick="document.getElementById(\'mbg\').classList.remove(\'open\')">&times;</button>' +
+    (book.c ? '<img class="modal-img" src="' + book.c + '" alt="">' : '<div class="modal-ph">' + book.t + '</div>') +
+    '<h2>' + book.t + '</h2>' +
+    (book.a ? '<div class="ma">' + book.a + '</div>' : '') +
+    '<div class="mg">' + book.g + '</div>';
+  document.getElementById('mbg').classList.add('open');
+}
+document.getElementById('mbg').addEventListener('click', e => { if (e.target === document.getElementById('mbg')) document.getElementById('mbg').classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('mbg').classList.remove('open'); });
+
+// Show All
+const showBtn = document.getElementById('show-all');
+const GRID_CELL_W = 120, GRID_CELL_H = 160;
+const GRID_COLS = Math.ceil(Math.sqrt(bookEls.length * (GRID_CELL_H / GRID_CELL_W)));
+showBtn.addEventListener('click', () => {
+  allRevealed = !allRevealed;
+  sky.classList.toggle('sky-revealed', allRevealed);
+  showBtn.textContent = allRevealed ? 'Hide All' : 'Show All';
+  if (allRevealed) {
+    const rows = Math.ceil(bookEls.length / GRID_COLS);
+    const gw = GRID_COLS * GRID_CELL_W, gh = rows * GRID_CELL_H + 200;
+    const nw = Math.max(SKY_W, gw + 200), nh = Math.max(SKY_H, gh);
+    sky.style.width = nw + 'px'; sky.style.height = nh + 'px';
+    const ox = (nw - gw) / 2;
+    bookEls.forEach((s, i) => {
+      s.el.style.left = (ox + (i % GRID_COLS) * GRID_CELL_W + GRID_CELL_W / 2) + 'px';
+      s.el.style.top = (100 + Math.floor(i / GRID_COLS) * GRID_CELL_H + GRID_CELL_H / 2) + 'px';
+    });
+  } else {
+    sky.style.width = SKY_W + 'px'; sky.style.height = SKY_H + 'px';
+    bookEls.forEach(s => { s.el.style.left = s.x + 'px'; s.el.style.top = s.y + 'px'; });
+  }
+  px = -(parseInt(sky.style.width) / 2 - window.innerWidth / 2);
+  py = -(parseInt(sky.style.height) / 2 - window.innerHeight / 2);
+  renderPos();
+});
+
+// Prevent pinch zoom
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false });
+</script>
+</body>
+</html>

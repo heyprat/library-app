@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Catch the Books!</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  background:linear-gradient(180deg, #4a90d9 0%, #87ceeb 40%, #b8e4f0 70%, #e8f4f8 100%);
+  font-family:'DM Sans',sans-serif;
+  overflow:hidden;
+  width:100vw;height:100vh;
+  user-select:none;
+  -webkit-user-select:none;
+  cursor:none;
+}
+
+/* Clouds */
+.cloud{
+  position:absolute;
+  background:#fff;
+  border-radius:50%;
+  opacity:.7;
+  filter:blur(2px);
+}
+.cloud::before,.cloud::after{
+  content:'';position:absolute;
+  background:#fff;border-radius:50%;
+}
+.cloud::before{width:70%;height:70%;top:-30%;left:15%}
+.cloud::after{width:50%;height:50%;top:-15%;left:55%}
+
+/* Sun */
+#sun{
+  position:absolute;
+  top:40px;right:80px;
+  width:80px;height:80px;
+  background:radial-gradient(circle, #fff5c0 0%, #ffd700 40%, #ffaa00 70%, transparent 100%);
+  border-radius:50%;
+  box-shadow:0 0 60px rgba(255,215,0,.5), 0 0 120px rgba(255,170,0,.2);
+}
+
+/* Flying carriers (birds & planes) */
+.carrier{
+  position:absolute;
+  z-index:10;
+  transition:none;
+}
+.carrier.bird{font-size:32px;line-height:1}
+.carrier.plane{font-size:36px;line-height:1}
+
+/* Book being carried */
+.carried-book{
+  position:absolute;
+  width:36px;height:52px;
+  border-radius:3px;
+  background:#8B4513;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+  overflow:hidden;
+  transition:none;
+}
+.carried-book img{
+  width:100%;height:100%;
+  object-fit:cover;
+}
+
+/* Falling book */
+.falling-book{
+  position:absolute;
+  width:40px;height:58px;
+  border-radius:3px;
+  background:#8B4513;
+  box-shadow:0 4px 12px rgba(0,0,0,.3);
+  overflow:hidden;
+  z-index:20;
+}
+.falling-book img{
+  width:100%;height:100%;
+  object-fit:cover;
+}
+
+/* Bucket / catcher */
+#bucket{
+  position:absolute;
+  bottom:20px;
+  width:90px;height:70px;
+  z-index:50;
+  pointer-events:none;
+}
+.bucket-body{
+  width:100%;height:100%;
+  position:relative;
+}
+/* Bucket SVG shape */
+.bucket-body svg{
+  width:100%;height:100%;
+}
+
+/* Caught books stack in bucket */
+.bucket-book{
+  position:absolute;
+  width:24px;height:34px;
+  border-radius:2px;
+  overflow:hidden;
+  box-shadow:0 1px 4px rgba(0,0,0,.3);
+  transition:all .3s ease;
+}
+.bucket-book img{
+  width:100%;height:100%;
+  object-fit:cover;
+}
+
+/* HUD */
+#hud{
+  position:fixed;
+  top:20px;left:50%;
+  transform:translateX(-50%);
+  z-index:100;
+  text-align:center;
+  pointer-events:none;
+}
+#hud h1{
+  font-family:'Instrument Serif',serif;
+  font-size:1.4rem;
+  color:#fff;
+  text-shadow:0 2px 12px rgba(0,0,0,.2);
+  font-weight:400;
+}
+#score{
+  font-size:.75rem;
+  color:rgba(255,255,255,.9);
+  text-shadow:0 1px 6px rgba(0,0,0,.15);
+  margin-top:4px;
+  letter-spacing:.08em;
+}
+
+/* Start / End overlay */
+#overlay{
+  position:fixed;
+  inset:0;
+  z-index:200;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  background:rgba(74,144,217,.3);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+#overlay.hidden{display:none}
+#overlay h1{
+  font-family:'Instrument Serif',serif;
+  font-size:2.2rem;
+  color:#fff;
+  text-shadow:0 2px 20px rgba(0,0,0,.2);
+  margin-bottom:8px;
+}
+#overlay p{
+  color:rgba(255,255,255,.85);
+  font-size:.9rem;
+  margin-bottom:24px;
+  text-align:center;
+  line-height:1.5;
+}
+#overlay button{
+  background:rgba(255,255,255,.2);
+  border:2px solid rgba(255,255,255,.5);
+  color:#fff;
+  font-family:'DM Sans',sans-serif;
+  font-size:.85rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  padding:12px 32px;
+  border-radius:100px;
+  cursor:pointer;
+  transition:all .25s;
+  pointer-events:auto;
+}
+#overlay button:hover{
+  background:rgba(255,255,255,.35);
+  border-color:rgba(255,255,255,.8);
+}
+
+/* Catch flash effect */
+.catch-flash{
+  position:absolute;
+  width:60px;height:60px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,100,.8) 0%, transparent 70%);
+  pointer-events:none;
+  z-index:30;
+  animation:flashPop .4s ease-out forwards;
+}
+@keyframes flashPop{
+  0%{transform:scale(0);opacity:1}
+  100%{transform:scale(2);opacity:0}
+}
+
+/* Miss effect */
+.miss-poof{
+  position:absolute;
+  font-size:24px;
+  pointer-events:none;
+  z-index:30;
+  animation:poofUp .6s ease-out forwards;
+}
+@keyframes poofUp{
+  0%{transform:translateY(0);opacity:1}
+  100%{transform:translateY(-40px);opacity:0}
+}
+
+/* Caught book shelf (end screen) */
+#caught-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:center;
+  max-width:500px;
+  margin:16px auto;
+}
+#caught-grid .shelf-book{
+  width:48px;height:70px;
+  border-radius:3px;
+  overflow:hidden;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+  animation:shelfPop .3s ease-out both;
+}
+#caught-grid .shelf-book img{
+  width:100%;height:100%;object-fit:cover;
+}
+@keyframes shelfPop{
+  0%{transform:scale(0);opacity:0}
+  100%{transform:scale(1);opacity:1}
+}
+
+/* Ground */
+#ground{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  height:16px;
+  background:linear-gradient(180deg, #7ec850 0%, #5da040 100%);
+  z-index:5;
+}
+
+@media(max-width:600px){
+  #overlay h1{font-size:1.6rem}
+  .carrier.bird{font-size:24px}
+  .carrier.plane{font-size:28px}
+  .carried-book{width:28px;height:40px}
+  .falling-book{width:32px;height:46px}
+  #bucket{width:75px;height:58px}
+}
+</style>
+</head>
+<body>
+
+<div id="sun"></div>
+<div id="ground"></div>
+
+<div id="hud">
+  <h1>Catch the Books!</h1>
+  <div id="score"></div>
+</div>
+
+<div id="bucket">
+  <div class="bucket-body">
+    <svg viewBox="0 0 90 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Bucket -->
+      <path d="M10 15 L80 15 L72 62 L18 62 Z" fill="#8B6914" stroke="#6B4F10" stroke-width="2"/>
+      <path d="M10 15 L80 15 L80 22 L10 22 Z" fill="#A07818" stroke="#6B4F10" stroke-width="1.5"/>
+      <!-- Handle -->
+      <path d="M20 15 Q20 2, 45 2 Q70 2, 70 15" stroke="#6B4F10" stroke-width="3" fill="none"/>
+      <!-- Bands -->
+      <line x1="15" y1="35" x2="75" y2="35" stroke="#6B4F10" stroke-width="1.5" opacity=".4"/>
+      <line x1="17" y1="50" x2="73" y2="50" stroke="#6B4F10" stroke-width="1.5" opacity=".4"/>
+    </svg>
+  </div>
+</div>
+
+<div id="overlay">
+  <h1>Catch the Books!</h1>
+  <p>Birds and planes are carrying your books across the sky.<br>Move your bucket to catch them as they drop!</p>
+  <button id="start-btn">Start</button>
+</div>
+
+<script>
+const B=[
+  {t:"Addiction by Design",a:"Natasha Dow Schüll",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/12898178-M.jpg"},
+  {t:"Extreme Economies",a:"Richard Davies",g:"Economics",c:"https://covers.openlibrary.org/b/id/12707846-M.jpg"},
+  {t:"Small Rain",a:"Garth Greenwell",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14744666-M.jpg"},
+  {t:"The Maniac",a:"Benjamín Labatut",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14036185-M.jpg"},
+  {t:"Noise",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10981966-M.jpg"},
+  {t:"Range",a:"David Epstein",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8782615-M.jpg"},
+  {t:"How We Got to Now",a:"Steven Johnson",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9692318-M.jpg"},
+  {t:"The Money Trap",a:"Alok Sama",g:"Business",c:"https://covers.openlibrary.org/b/id/14802826-M.jpg"},
+  {t:"Exhalation",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8793546-M.jpg"},
+  {t:"Small Data",a:"Martin Lindstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/8881323-M.jpg"},
+  {t:"This Is Marketing",a:"Seth Godin",g:"Business",c:"https://covers.openlibrary.org/b/id/14624926-M.jpg"},
+  {t:"How I Built This",a:"Guy Raz",g:"Business",c:"https://covers.openlibrary.org/b/id/10454172-M.jpg"},
+  {t:"Atomic Habits",a:"James Clear",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/12539702-M.jpg"},
+  {t:"Loonshots",a:"Safi Bahcall",g:"Business",c:"https://covers.openlibrary.org/b/id/8518798-M.jpg"},
+  {t:"No Rules Rules",a:"Reed Hastings",g:"Business",c:"https://covers.openlibrary.org/b/id/10524294-M.jpg"},
+  {t:"Guns, Germs, and Steel",a:"Jared Diamond",g:"History",c:"https://covers.openlibrary.org/b/id/7884018-M.jpg"},
+  {t:"Antifragile",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9180157-M.jpg"},
+  {t:"Thinking, Fast and Slow",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/15174454-M.jpg"},
+  {t:"Sapiens",a:"Yuval Noah Harari",g:"History",c:"https://covers.openlibrary.org/b/id/8634250-M.jpg"},
+  {t:"The Alchemist",a:"Paulo Coelho",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7414780-M.jpg"},
+  {t:"Factfulness",a:"Hans Rosling",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8186237-M.jpg"},
+  {t:"Stories of Your Life and Others",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/524046-M.jpg"},
+  {t:"Behave",a:"Robert Sapolsky",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8814831-M.jpg"},
+  {t:"The Black Swan",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/5721840-M.jpg"},
+  {t:"Man's Search for Meaning",a:"Viktor Frankl",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/8516506-M.jpg"},
+  {t:"Pride and Prejudice",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/523015-M.jpg"},
+  {t:"Things Fall Apart",a:"Chinua Achebe",g:"Fiction",c:"https://covers.openlibrary.org/b/id/5042837-M.jpg"},
+  {t:"Jonathan Livingston Seagull",a:"Richard Bach",g:"Fiction",c:"https://covers.openlibrary.org/b/id/6522230-M.jpg"},
+  {t:"The Order of Time",a:"Carlo Rovelli",g:"Science & Ideas"},
+  {t:"Martyr!",a:"Kaveh Akbar",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14562207-M.jpg"},
+  {t:"My Friends",a:"Hisham Matar",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14562202-M.jpg"},
+  {t:"Looking for Alaska",a:"John Green",g:"Fiction",c:"https://covers.openlibrary.org/b/id/12614602-M.jpg"},
+].filter(b => b.c); // only books with covers
+
+const W = () => window.innerWidth;
+const H = () => window.innerHeight;
+
+// State
+let gameRunning = false;
+let bucketX = W() / 2;
+let caught = [];
+let missed = 0;
+let totalDropped = 0;
+let bookQueue = [];
+let carriers = [];
+let fallingBooks = [];
+let animId = null;
+let nextSpawnTime = 0;
+let gameStartTime = 0;
+
+const bucket = document.getElementById('bucket');
+const hud = document.getElementById('hud');
+const scoreEl = document.getElementById('score');
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('start-btn');
+
+// Clouds
+function makeClouds() {
+  for (let i = 0; i < 8; i++) {
+    const c = document.createElement('div');
+    c.className = 'cloud';
+    const size = 60 + Math.random() * 120;
+    c.style.width = size + 'px';
+    c.style.height = size * 0.5 + 'px';
+    c.style.left = Math.random() * W() + 'px';
+    c.style.top = 30 + Math.random() * H() * 0.35 + 'px';
+    c.style.opacity = 0.3 + Math.random() * 0.4;
+    document.body.appendChild(c);
+  }
+}
+makeClouds();
+
+// Bucket movement
+function moveBucket(x) {
+  bucketX = Math.max(45, Math.min(W() - 45, x));
+  bucket.style.left = (bucketX - 45) + 'px';
+}
+moveBucket(W() / 2);
+
+document.addEventListener('mousemove', e => {
+  if (gameRunning) moveBucket(e.clientX);
+});
+document.addEventListener('touchmove', e => {
+  if (gameRunning) {
+    e.preventDefault();
+    moveBucket(e.touches[0].clientX);
+  }
+}, { passive: false });
+document.addEventListener('touchstart', e => {
+  if (gameRunning) moveBucket(e.touches[0].clientX);
+}, { passive: true });
+
+// Carrier types
+const BIRD_FRAMES = ['🐦', '🕊️', '🦅', '🦜'];
+const PLANE_FRAMES = ['✈️', '🛩️'];
+
+function spawnCarrier() {
+  if (bookQueue.length === 0) return;
+  const book = bookQueue.shift();
+  totalDropped++;
+
+  const isBird = Math.random() > 0.35;
+  const goRight = Math.random() > 0.5;
+  const speed = 1.2 + Math.random() * 1.8; // px per frame
+  const y = 50 + Math.random() * (H() * 0.3);
+
+  // Carrier element
+  const el = document.createElement('div');
+  el.className = 'carrier ' + (isBird ? 'bird' : 'plane');
+  el.textContent = isBird
+    ? BIRD_FRAMES[Math.floor(Math.random() * BIRD_FRAMES.length)]
+    : PLANE_FRAMES[Math.floor(Math.random() * PLANE_FRAMES.length)];
+  el.style.top = y + 'px';
+  el.style.left = (goRight ? -60 : W() + 20) + 'px';
+  if (!goRight) el.style.transform = 'scaleX(-1)';
+  document.body.appendChild(el);
+
+  // Carried book element
+  const bEl = document.createElement('div');
+  bEl.className = 'carried-book';
+  bEl.innerHTML = '<img src="' + book.c + '" alt="">';
+  bEl.style.top = (isBird ? 28 : 32) + 'px';
+  bEl.style.left = '2px';
+  el.appendChild(bEl);
+
+  // Drop point: random x between 15%-85% of screen
+  const dropX = W() * 0.15 + Math.random() * W() * 0.7;
+
+  const carrier = {
+    el, bEl, book, y, speed: goRight ? speed : -speed,
+    x: goRight ? -60 : W() + 20,
+    dropX, dropped: false, goRight
+  };
+  carriers.push(carrier);
+}
+
+function updateCarriers() {
+  for (let i = carriers.length - 1; i >= 0; i--) {
+    const c = carriers[i];
+    c.x += c.speed;
+    c.el.style.left = c.x + 'px';
+
+    // Bob up and down
+    const bob = Math.sin(Date.now() / 300 + i * 2) * 4;
+    c.el.style.top = (c.y + bob) + 'px';
+
+    // Check if at drop point
+    if (!c.dropped) {
+      const atDrop = c.goRight ? c.x >= c.dropX : c.x <= c.dropX;
+      if (atDrop) {
+        c.dropped = true;
+        c.bEl.remove();
+        // Create falling book
+        dropBook(c.x + 15, c.y + 30, c.book);
+      }
+    }
+
+    // Remove if off screen
+    if ((c.goRight && c.x > W() + 80) || (!c.goRight && c.x < -80)) {
+      c.el.remove();
+      // If it never dropped (shouldn't happen but safety), count as miss
+      if (!c.dropped) {
+        missed++;
+        totalDropped++;
+      }
+      carriers.splice(i, 1);
+    }
+  }
+}
+
+function dropBook(x, y, book) {
+  const el = document.createElement('div');
+  el.className = 'falling-book';
+  el.innerHTML = '<img src="' + book.c + '" alt="">';
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.body.appendChild(el);
+
+  fallingBooks.push({
+    el, book, x, y,
+    vy: 0.5,
+    gravity: 0.12 + Math.random() * 0.06,
+    rotation: (Math.random() - 0.5) * 2,
+    angle: 0
+  });
+}
+
+function updateFallingBooks() {
+  const bucketLeft = bucketX - 50;
+  const bucketRight = bucketX + 50;
+  const bucketTop = H() - 85;
+
+  for (let i = fallingBooks.length - 1; i >= 0; i--) {
+    const fb = fallingBooks[i];
+    fb.vy += fb.gravity;
+    fb.y += fb.vy;
+    fb.angle += fb.rotation;
+    fb.el.style.top = fb.y + 'px';
+    fb.el.style.transform = 'rotate(' + fb.angle + 'deg)';
+
+    const bookCenterX = fb.x + 20;
+    const bookBottom = fb.y + 58;
+
+    // Check catch
+    if (bookBottom >= bucketTop && fb.y < H() - 20 &&
+        bookCenterX >= bucketLeft && bookCenterX <= bucketRight) {
+      // Caught!
+      caught.push(fb.book);
+      fb.el.remove();
+      fallingBooks.splice(i, 1);
+
+      // Flash effect
+      const flash = document.createElement('div');
+      flash.className = 'catch-flash';
+      flash.style.left = (bookCenterX - 30) + 'px';
+      flash.style.top = (bucketTop - 10) + 'px';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 400);
+
+      updateScore();
+      continue;
+    }
+
+    // Check miss (fell past bottom)
+    if (fb.y > H() + 20) {
+      missed++;
+      fb.el.remove();
+      fallingBooks.splice(i, 1);
+
+      // Poof
+      const poof = document.createElement('div');
+      poof.className = 'miss-poof';
+      poof.textContent = '💨';
+      poof.style.left = fb.x + 'px';
+      poof.style.top = (H() - 30) + 'px';
+      document.body.appendChild(poof);
+      setTimeout(() => poof.remove(), 600);
+
+      updateScore();
+    }
+  }
+}
+
+function updateScore() {
+  const total = caught.length + missed;
+  scoreEl.textContent = caught.length + ' caught · ' + missed + ' missed · ' + (bookQueue.length + carriers.filter(c => !c.dropped).length) + ' left';
+}
+
+function gameLoop() {
+  if (!gameRunning) return;
+
+  const now = Date.now();
+
+  // Spawn carriers at intervals
+  if (now >= nextSpawnTime && bookQueue.length > 0) {
+    spawnCarrier();
+    // Speed up spawning as game progresses, but keep it catchable
+    const elapsed = (now - gameStartTime) / 1000;
+    const interval = Math.max(1200, 2500 - elapsed * 30);
+    nextSpawnTime = now + interval;
+  }
+
+  updateCarriers();
+  updateFallingBooks();
+
+  // Check game over
+  if (bookQueue.length === 0 && carriers.length === 0 && fallingBooks.length === 0) {
+    endGame();
+    return;
+  }
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  // Reset
+  caught = [];
+  missed = 0;
+  totalDropped = 0;
+  carriers.forEach(c => c.el.remove());
+  carriers = [];
+  fallingBooks.forEach(f => f.el.remove());
+  fallingBooks = [];
+
+  // Shuffle books and pick a subset (15-25 for a good game length)
+  const shuffled = [...B].sort(() => Math.random() - 0.5);
+  bookQueue = shuffled.slice(0, Math.min(20, shuffled.length));
+
+  overlay.classList.add('hidden');
+  gameRunning = true;
+  gameStartTime = Date.now();
+  nextSpawnTime = Date.now() + 800;
+  document.body.style.cursor = 'none';
+  updateScore();
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+  gameRunning = false;
+  document.body.style.cursor = 'default';
+  if (animId) cancelAnimationFrame(animId);
+
+  const total = caught.length + missed;
+  const perfect = missed === 0;
+
+  overlay.classList.remove('hidden');
+  let html = '';
+
+  if (perfect) {
+    html += '<h1>You caught them all! ✨</h1>';
+    html += '<p>Every single book safely in the bucket.</p>';
+  } else {
+    html += '<h1>' + caught.length + ' of ' + total + ' caught</h1>';
+    html += '<p>' + (caught.length > total * 0.7 ? 'Nice effort!' : 'Those books are slippery!') + '</p>';
+  }
+
+  // Show caught books
+  if (caught.length > 0) {
+    html += '<div id="caught-grid">';
+    caught.forEach((book, i) => {
+      html += '<div class="shelf-book" style="animation-delay:' + (i * 0.05) + 's" title="' +
+        book.t.replace(/"/g, '&quot;') + ' — ' + book.a.replace(/"/g, '&quot;') + '">' +
+        '<img src="' + book.c + '" alt=""></div>';
+    });
+    html += '</div>';
+  }
+
+  if (perfect) {
+    html += '<button id="show-all-btn" style="margin-top:16px">Show All Books</button>';
+    html += '<br><button id="play-again-btn" style="margin-top:8px">Play Again</button>';
+  } else {
+    html += '<button id="play-again-btn" style="margin-top:16px">Try Again</button>';
+  }
+
+  overlay.innerHTML = html;
+
+  // Wire up buttons
+  const playAgain = document.getElementById('play-again-btn');
+  if (playAgain) playAgain.addEventListener('click', startGame);
+
+  const showAll = document.getElementById('show-all-btn');
+  if (showAll) {
+    showAll.addEventListener('click', () => {
+      showAllBooks();
+    });
+  }
+}
+
+function showAllBooks() {
+  overlay.classList.remove('hidden');
+  let html = '<h1>Your Library</h1>';
+  html += '<div id="caught-grid">';
+  B.forEach((book, i) => {
+    html += '<div class="shelf-book" style="animation-delay:' + (i * 0.03) + 's" title="' +
+      book.t.replace(/"/g, '&quot;') + ' — ' + book.a.replace(/"/g, '&quot;') + '">' +
+      '<img src="' + book.c + '" alt=""></div>';
+  });
+  html += '</div>';
+  html += '<button id="play-again-btn" style="margin-top:16px">Play Again</button>';
+  overlay.innerHTML = html;
+
+  document.getElementById('play-again-btn').addEventListener('click', startGame);
+}
+
+startBtn.addEventListener('click', startGame);
+
+// Handle resize
+window.addEventListener('resize', () => {
+  moveBucket(Math.min(bucketX, W() - 45));
+});
+</script>
+</body>
+</html>

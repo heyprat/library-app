@@ -7,6 +7,8 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Night Sky">
 <meta property="og:description" content="A personal night sky of books">
+<meta name="supabase-url" content="https://qndadicpfrqxxsvodpqc.supabase.co">
+<meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFuZGFkaWNwZnJxeHhzdm9kcHFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMzIyMjgsImV4cCI6MjA4ODYwODIyOH0.AqxGEmldvJeps9SbJDMBfMeV0EmNDUkNaqtttfZbvoU">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -18,6 +20,7 @@ body{
   overflow:hidden;
   width:100vw;height:100vh;
   cursor:grab;
+  touch-action:pan-x pan-y;
 }
 body:active{cursor:grabbing}
 
@@ -259,9 +262,49 @@ body:active{cursor:grabbing}
 #error-msg p{font-size:.8rem;color:rgba(212,200,168,.35)}
 #error-msg a{color:rgba(212,200,168,.5);margin-top:16px;font-size:.75rem}
 
+.sky-actions{
+  position:fixed;
+  bottom:32px;right:32px;
+  z-index:500;
+  display:flex;gap:10px;
+  align-items:center;
+}
+.sky-actions a, .sky-actions button{
+  background:rgba(212,200,168,.08);
+  border:1px solid rgba(212,200,168,.2);
+  color:rgba(212,200,168,.6);
+  font-family:'DM Sans',sans-serif;
+  font-size:.7rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  padding:10px 24px;
+  border-radius:100px;
+  cursor:pointer;
+  transition:all .25s;
+  text-decoration:none;
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.sky-actions a:hover, .sky-actions button:hover{
+  color:rgba(212,200,168,.95);
+  border-color:rgba(212,200,168,.45);
+  background:rgba(212,200,168,.12);
+}
+.sky-actions .logout-btn{
+  font-size:.6rem;
+  padding:8px 16px;
+  color:rgba(212,200,168,.35);
+  border-color:rgba(212,200,168,.1);
+  background:rgba(212,200,168,.03);
+}
+
 @media(max-width:600px){
   #title h1{font-size:1.2rem}
   .make-own{
+    right:auto;left:50%;transform:translateX(-50%);
+    bottom:24px;
+  }
+  .sky-actions{
     right:auto;left:50%;transform:translateX(-50%);
     bottom:24px;
   }
@@ -280,6 +323,8 @@ body:active{cursor:grabbing}
   <a href="/onboard">Create your own</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/js/supabase-client.js"></script>
 <script src="/js/sky-renderer.js"></script>
 <script>
 (async () => {
@@ -311,12 +356,62 @@ body:active{cursor:grabbing}
       hash |= 0;
     }
 
+    // Check if the viewer is the sky owner
+    let isOwner = false;
+    let isLoggedIn = false;
+    try {
+      const session = await getSession();
+      if (session) {
+        isLoggedIn = true;
+        const sb = getSupabase();
+        const { data: profile } = await sb
+          .from('users')
+          .select('username')
+          .eq('id', session.user.id)
+          .single();
+        if (profile && profile.username === username) {
+          isOwner = true;
+        }
+      }
+    } catch (e) {
+      // Auth check failed, just show default UI
+    }
+
     renderSky(document.body, data.books, {
       title: displayTitle,
       subtitle: data.books.length + ' books \u00b7 hover to reveal \u00b7 drag to explore',
       seed: Math.abs(hash) || 42,
-      showMakeYourOwn: true
+      showMakeYourOwn: !isLoggedIn
     });
+
+    // Show auth-aware actions
+    if (isLoggedIn) {
+      const actions = document.createElement('div');
+      actions.className = 'sky-actions';
+
+      if (isOwner) {
+        const dash = document.createElement('a');
+        dash.href = '/onboard';
+        dash.textContent = 'Dashboard';
+        actions.appendChild(dash);
+      } else {
+        const own = document.createElement('a');
+        own.href = '/onboard';
+        own.textContent = 'Make Your Own';
+        actions.appendChild(own);
+      }
+
+      const logout = document.createElement('button');
+      logout.className = 'logout-btn';
+      logout.textContent = 'Sign Out';
+      logout.addEventListener('click', async () => {
+        await signOut();
+        window.location.reload();
+      });
+      actions.appendChild(logout);
+
+      document.body.appendChild(actions);
+    }
   } catch (err) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('error-msg').style.display = 'flex';

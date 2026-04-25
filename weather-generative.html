@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pratyush's Library — Weather Canvas</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  background:#0a0b0f;
+  color:#e8e6e1;
+  font-family:'DM Sans',sans-serif;
+  overflow-x:hidden;
+  overflow-y:auto;
+  min-height:100vh;
+}
+
+canvas#bg{
+  position:fixed;
+  top:0;left:0;
+  width:100vw;height:100vh;
+  z-index:0;
+}
+
+.content{
+  position:relative;
+  z-index:1;
+  max-width:900px;
+  margin:0 auto;
+  padding:60px 24px 120px;
+}
+
+h1.title{
+  font-family:'Instrument Serif',serif;
+  font-size:clamp(2rem,5vw,3.2rem);
+  font-weight:400;
+  text-align:center;
+  margin-bottom:8px;
+  color:#fff;
+  text-shadow:0 2px 20px rgba(0,0,0,0.5);
+}
+
+.subtitle{
+  text-align:center;
+  font-size:0.85rem;
+  color:rgba(255,255,255,0.5);
+  margin-bottom:40px;
+  letter-spacing:0.05em;
+}
+
+/* Weather badge */
+.weather-badge{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin:0 auto 36px;
+  padding:8px 20px;
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:100px;
+  font-size:0.82rem;
+  color:rgba(255,255,255,0.7);
+  width:fit-content;
+  transition:all 0.6s ease;
+}
+.weather-badge .dot{
+  width:6px;height:6px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.4);
+  flex-shrink:0;
+}
+
+/* Book grid */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:20px;
+}
+
+.card{
+  background:rgba(255,255,255,0.06);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;
+  padding:12px;
+  cursor:pointer;
+  transition:transform 0.3s cubic-bezier(0.23,1,0.32,1), box-shadow 0.3s ease, background 0.3s ease;
+}
+.card:hover{
+  transform:translateY(-4px) scale(1.03);
+  box-shadow:0 12px 40px rgba(0,0,0,0.4);
+  background:rgba(255,255,255,0.1);
+}
+
+.card img{
+  width:100%;
+  aspect-ratio:2/3;
+  object-fit:cover;
+  border-radius:8px;
+  display:block;
+  background:rgba(255,255,255,0.05);
+}
+
+.card .card-title{
+  font-family:'Instrument Serif',serif;
+  font-size:0.85rem;
+  margin-top:10px;
+  line-height:1.2;
+  color:rgba(255,255,255,0.9);
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
+.card .card-author{
+  font-size:0.7rem;
+  color:rgba(255,255,255,0.4);
+  margin-top:3px;
+  display:-webkit-box;
+  -webkit-line-clamp:1;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
+/* Modal */
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  z-index:100;
+  background:rgba(0,0,0,0.7);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.3s ease;
+}
+.modal-overlay.open{
+  opacity:1;
+  pointer-events:auto;
+}
+
+.modal{
+  background:rgba(30,30,35,0.95);
+  backdrop-filter:blur(30px);
+  -webkit-backdrop-filter:blur(30px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:20px;
+  padding:32px;
+  max-width:400px;
+  width:90%;
+  text-align:center;
+  transform:translateY(20px) scale(0.95);
+  transition:transform 0.3s cubic-bezier(0.23,1,0.32,1);
+}
+.modal-overlay.open .modal{
+  transform:translateY(0) scale(1);
+}
+
+.modal img{
+  width:160px;
+  border-radius:10px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.5);
+  margin-bottom:20px;
+}
+.modal h2{
+  font-family:'Instrument Serif',serif;
+  font-size:1.5rem;
+  font-weight:400;
+  color:#fff;
+  margin-bottom:6px;
+}
+.modal .modal-author{
+  font-size:0.9rem;
+  color:rgba(255,255,255,0.5);
+  margin-bottom:4px;
+}
+.modal .modal-genre{
+  font-size:0.75rem;
+  color:rgba(255,255,255,0.3);
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+}
+.modal-close{
+  position:absolute;
+  top:16px;right:16px;
+  background:none;
+  border:none;
+  color:rgba(255,255,255,0.4);
+  font-size:1.3rem;
+  cursor:pointer;
+  width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;
+  transition:background 0.2s;
+}
+.modal-close:hover{
+  background:rgba(255,255,255,0.1);
+  color:#fff;
+}
+
+/* City bar */
+.city-bar{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  z-index:50;
+  background:rgba(10,10,15,0.8);
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  border-top:1px solid rgba(255,255,255,0.06);
+  padding:10px 16px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.city-search{
+  flex-shrink:0;
+  width:160px;
+  padding:7px 12px;
+  background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:8px;
+  color:#fff;
+  font-family:'DM Sans',sans-serif;
+  font-size:0.8rem;
+  outline:none;
+  transition:border-color 0.2s;
+}
+.city-search::placeholder{color:rgba(255,255,255,0.3)}
+.city-search:focus{border-color:rgba(255,255,255,0.3)}
+
+.city-scroll{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  flex:1;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+  padding:2px 0;
+}
+.city-scroll::-webkit-scrollbar{display:none}
+
+.chip{
+  flex-shrink:0;
+  padding:6px 14px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:100px;
+  color:rgba(255,255,255,0.6);
+  font-size:0.75rem;
+  cursor:pointer;
+  transition:all 0.2s;
+  white-space:nowrap;
+  font-family:'DM Sans',sans-serif;
+}
+.chip:hover{background:rgba(255,255,255,0.12);color:#fff}
+.chip.active{
+  background:rgba(255,255,255,0.15);
+  border-color:rgba(255,255,255,0.25);
+  color:#fff;
+}
+
+/* Search results dropdown */
+.search-results{
+  position:fixed;
+  bottom:52px;
+  left:16px;
+  width:200px;
+  background:rgba(20,20,25,0.95);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px;
+  overflow:hidden;
+  display:none;
+  z-index:60;
+}
+.search-results.show{display:block}
+.search-result{
+  padding:8px 14px;
+  font-size:0.8rem;
+  color:rgba(255,255,255,0.7);
+  cursor:pointer;
+  transition:background 0.15s;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+.search-result:last-child{border-bottom:none}
+.search-result:hover{background:rgba(255,255,255,0.08);color:#fff}
+.search-result small{color:rgba(255,255,255,0.3);margin-left:4px}
+
+@media(max-width:600px){
+  .content{padding:40px 16px 120px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px}
+  .card{padding:8px}
+  .card .card-title{font-size:0.75rem}
+  .city-search{width:120px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="content">
+  <h1 class="title">Pratyush's Library</h1>
+  <p class="subtitle">Weather-driven generative art</p>
+  <div class="weather-badge" id="badge">
+    <span class="dot"></span>
+    <span id="badge-text">Detecting location...</span>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" id="modal-close">&times;</button>
+    <img id="modal-img" src="" alt="">
+    <h2 id="modal-title"></h2>
+    <p class="modal-author" id="modal-author"></p>
+    <p class="modal-genre" id="modal-genre"></p>
+  </div>
+</div>
+
+<div class="city-bar">
+  <input class="city-search" id="search" type="text" placeholder="Search city...">
+  <div class="city-scroll" id="chips"></div>
+</div>
+<div class="search-results" id="search-results"></div>
+
+<script>
+// ─── DATA ───
+const BOOKS=[
+  {t:"Addiction by Design",a:"Natasha Dow Sch\u00fcll",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/12898178-M.jpg"},
+  {t:"Extreme Economies",a:"Richard Davies",g:"Economics",c:"https://covers.openlibrary.org/b/id/12707846-M.jpg"},
+  {t:"Small Rain",a:"Garth Greenwell",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14744666-M.jpg"},
+  {t:"The Maniac",a:"Benjam\u00edn Labatut",g:"Fiction",c:"https://covers.openlibrary.org/b/id/14036185-M.jpg"},
+  {t:"Noise",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10981966-M.jpg"},
+  {t:"Range",a:"David Epstein",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8782615-M.jpg"},
+  {t:"How We Got to Now",a:"Steven Johnson",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9692318-M.jpg"},
+  {t:"The Money Trap",a:"Alok Sama",g:"Business",c:"https://covers.openlibrary.org/b/id/14802826-M.jpg"},
+  {t:"Exhalation",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/8793546-M.jpg"},
+  {t:"Small Data",a:"Martin Lindstrom",g:"Business",c:"https://covers.openlibrary.org/b/id/8881323-M.jpg"},
+  {t:"Atomic Habits",a:"James Clear",g:"Self-Help",c:"https://covers.openlibrary.org/b/id/12539702-M.jpg"},
+  {t:"Loonshots",a:"Safi Bahcall",g:"Business",c:"https://covers.openlibrary.org/b/id/8518798-M.jpg"},
+  {t:"No Rules Rules",a:"Reed Hastings",g:"Business",c:"https://covers.openlibrary.org/b/id/10524294-M.jpg"},
+  {t:"Antifragile",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9180157-M.jpg"},
+  {t:"Thinking, Fast and Slow",a:"Daniel Kahneman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/15174454-M.jpg"},
+  {t:"Outliers",a:"Malcolm Gladwell",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/10021591-M.jpg"},
+  {t:"Sapiens",a:"Yuval Noah Harari",g:"History",c:"https://covers.openlibrary.org/b/id/8634250-M.jpg"},
+  {t:"The Alchemist",a:"Paulo Coelho",g:"Fiction",c:"https://covers.openlibrary.org/b/id/7414780-M.jpg"},
+  {t:"The Lean Startup",a:"Eric Ries",g:"Business",c:"https://covers.openlibrary.org/b/id/7104760-M.jpg"},
+  {t:"Factfulness",a:"Hans Rosling",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8186237-M.jpg"},
+  {t:"Man's Search for Meaning",a:"Viktor Frankl",g:"Philosophy",c:"https://covers.openlibrary.org/b/id/8516506-M.jpg"},
+  {t:"Behave",a:"Robert Sapolsky",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/8814831-M.jpg"},
+  {t:"The Black Swan",a:"Nassim Nicholas Taleb",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/5721840-M.jpg"},
+  {t:"Pride and Prejudice",a:"Jane Austen",g:"Fiction",c:"https://covers.openlibrary.org/b/id/523015-M.jpg"},
+  {t:"Surely You're Joking, Mr. Feynman!",a:"Richard Feynman",g:"Science & Ideas",c:"https://covers.openlibrary.org/b/id/9274698-M.jpg"},
+  {t:"The Everything Store",a:"Brad Stone",g:"Business",c:"https://covers.openlibrary.org/b/id/7264584-M.jpg"},
+  {t:"Stories of Your Life and Others",a:"Ted Chiang",g:"Fiction",c:"https://covers.openlibrary.org/b/id/524046-M.jpg"},
+  {t:"Guns, Germs, and Steel",a:"Jared Diamond",g:"History",c:"https://covers.openlibrary.org/b/id/7884018-M.jpg"},
+];
+
+const CITIES=[
+  {name:"New York",lat:40.71,lon:-74.01},{name:"London",lat:51.51,lon:-0.13},
+  {name:"Tokyo",lat:35.68,lon:139.69},{name:"Paris",lat:48.86,lon:2.35},
+  {name:"Sydney",lat:-33.87,lon:151.21},{name:"Dubai",lat:25.20,lon:55.27},
+  {name:"Mumbai",lat:19.08,lon:72.88},{name:"Singapore",lat:1.35,lon:103.82},
+  {name:"S\u00e3o Paulo",lat:-23.55,lon:-46.63},{name:"Cape Town",lat:-33.93,lon:18.42},
+  {name:"Toronto",lat:43.65,lon:-79.38},{name:"Berlin",lat:52.52,lon:13.41},
+  {name:"Seoul",lat:37.57,lon:126.98},{name:"Mexico City",lat:19.43,lon:-99.13},
+  {name:"Cairo",lat:30.04,lon:31.24},{name:"Stockholm",lat:59.33,lon:18.07},
+  {name:"Bangkok",lat:13.76,lon:100.50},{name:"Nairobi",lat:-1.29,lon:36.82},
+  {name:"Buenos Aires",lat:-34.60,lon:-58.38},{name:"Reykjavik",lat:64.15,lon:-21.94},
+];
+
+// ─── SIMPLEX NOISE (2D) ───
+// Based on Stefan Gustavson's implementation
+const F2 = 0.5 * (Math.sqrt(3) - 1);
+const G2 = (3 - Math.sqrt(3)) / 6;
+const grad3 = [[1,1],[- 1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+const perm = new Uint8Array(512);
+const permMod8 = new Uint8Array(512);
+(function(){
+  const p = new Uint8Array(256);
+  for(let i=0;i<256;i++) p[i]=i;
+  // Shuffle with seed
+  let s = 42;
+  for(let i=255;i>0;i--){
+    s=(s*16807+0)%2147483647;
+    const j = s % (i+1);
+    [p[i],p[j]]=[p[j],p[i]];
+  }
+  for(let i=0;i<512;i++){
+    perm[i]=p[i&255];
+    permMod8[i]=perm[i]%8;
+  }
+})();
+
+function noise2D(x,y){
+  const s=(x+y)*F2;
+  const i=Math.floor(x+s), j=Math.floor(y+s);
+  const t=(i+j)*G2;
+  const X0=i-t, Y0=j-t;
+  const x0=x-X0, y0=y-Y0;
+  const i1=x0>y0?1:0, j1=x0>y0?0:1;
+  const x1=x0-i1+G2, y1=y0-j1+G2;
+  const x2=x0-1+2*G2, y2=y0-1+2*G2;
+  const ii=i&255, jj=j&255;
+  const gi0=permMod8[ii+perm[jj]];
+  const gi1=permMod8[ii+i1+perm[jj+j1]];
+  const gi2=permMod8[ii+1+perm[jj+1]];
+  let n0=0,n1=0,n2=0;
+  let t0=0.5-x0*x0-y0*y0;
+  if(t0>0){t0*=t0;n0=t0*t0*(grad3[gi0][0]*x0+grad3[gi0][1]*y0);}
+  let t1=0.5-x1*x1-y1*y1;
+  if(t1>0){t1*=t1;n1=t1*t1*(grad3[gi1][0]*x1+grad3[gi1][1]*y1);}
+  let t2=0.5-x2*x2-y2*y2;
+  if(t2>0){t2*=t2;n2=t2*t2*(grad3[gi2][0]*x2+grad3[gi2][1]*y2);}
+  return 70*(n0+n1+n2);
+}
+
+function fbm(x,y,octaves=4){
+  let val=0,amp=1,freq=1,max=0;
+  for(let i=0;i<octaves;i++){
+    val+=noise2D(x*freq,y*freq)*amp;
+    max+=amp;
+    amp*=0.5;
+    freq*=2;
+  }
+  return val/max;
+}
+
+// ─── WEATHER MOOD PROFILES ───
+const MOODS = {
+  clear:{
+    colors:[[255,215,120],[255,180,80],[255,150,60],[240,120,40]],
+    bg:[30,20,10],
+    particleCount:60,
+    particleSize:[1,3],
+    particleSpeed:0.3,
+    particleAlpha:0.4,
+    noiseScale:0.002,
+    noiseSpeed:0.0003,
+    flowStrength:0.8,
+    blobCount:5,
+    blobSize:0.3,
+    blobAlpha:0.15,
+    rain:false,snow:false,flash:false,stars:false,
+    desc:"Clear"
+  },
+  cloudy:{
+    colors:[[140,160,190],[120,140,170],[100,120,150],[80,100,130]],
+    bg:[25,30,40],
+    particleCount:20,
+    particleSize:[2,5],
+    particleSpeed:0.15,
+    particleAlpha:0.15,
+    noiseScale:0.001,
+    noiseSpeed:0.0002,
+    flowStrength:0.5,
+    blobCount:8,
+    blobSize:0.45,
+    blobAlpha:0.12,
+    rain:false,snow:false,flash:false,stars:false,
+    desc:"Cloudy"
+  },
+  overcast:{
+    colors:[[110,115,125],[100,105,115],[90,95,105],[80,85,95]],
+    bg:[30,32,38],
+    particleCount:10,
+    particleSize:[2,4],
+    particleSpeed:0.08,
+    particleAlpha:0.08,
+    noiseScale:0.0008,
+    noiseSpeed:0.00015,
+    flowStrength:0.3,
+    blobCount:10,
+    blobSize:0.5,
+    blobAlpha:0.1,
+    rain:false,snow:false,flash:false,stars:false,
+    desc:"Overcast"
+  },
+  rain:{
+    colors:[[80,110,160],[60,90,140],[50,80,130],[40,70,120]],
+    bg:[15,20,30],
+    particleCount:0,
+    particleSize:[1,2],
+    particleSpeed:0,
+    particleAlpha:0,
+    noiseScale:0.0015,
+    noiseSpeed:0.0004,
+    flowStrength:0.6,
+    blobCount:6,
+    blobSize:0.35,
+    blobAlpha:0.1,
+    rain:true,rainCount:200,rainSpeed:8,rainAngle:0.15,
+    snow:false,flash:false,stars:false,
+    desc:"Rain"
+  },
+  storm:{
+    colors:[[60,40,90],[40,30,70],[80,60,120],[100,80,140]],
+    bg:[8,5,15],
+    particleCount:0,
+    particleSize:[1,2],
+    particleSpeed:0,
+    particleAlpha:0,
+    noiseScale:0.002,
+    noiseSpeed:0.0006,
+    flowStrength:1.0,
+    blobCount:7,
+    blobSize:0.4,
+    blobAlpha:0.12,
+    rain:true,rainCount:350,rainSpeed:12,rainAngle:0.25,
+    snow:false,flash:true,flashInterval:4000,
+    stars:false,
+    desc:"Thunderstorm"
+  },
+  snow:{
+    colors:[[180,200,220],[160,185,210],[200,215,235],[220,230,245]],
+    bg:[30,35,45],
+    particleCount:0,
+    particleSize:[2,5],
+    particleSpeed:0,
+    particleAlpha:0,
+    noiseScale:0.001,
+    noiseSpeed:0.0002,
+    flowStrength:0.3,
+    blobCount:5,
+    blobSize:0.35,
+    blobAlpha:0.08,
+    rain:false,snow:true,snowCount:150,snowSpeed:1.5,
+    flash:false,stars:false,
+    desc:"Snow"
+  },
+  fog:{
+    colors:[[200,205,210],[190,195,200],[180,185,192],[210,215,220]],
+    bg:[50,52,58],
+    particleCount:0,
+    particleSize:[1,2],
+    particleSpeed:0,
+    particleAlpha:0,
+    noiseScale:0.0006,
+    noiseSpeed:0.0001,
+    flowStrength:0.2,
+    blobCount:12,
+    blobSize:0.6,
+    blobAlpha:0.2,
+    rain:false,snow:false,flash:false,stars:false,
+    desc:"Fog"
+  },
+  sunset:{
+    colors:[[255,140,50],[255,100,80],[220,80,140],[140,60,180],[60,40,120]],
+    bg:[20,10,30],
+    particleCount:30,
+    particleSize:[1,2],
+    particleSpeed:0.2,
+    particleAlpha:0.3,
+    noiseScale:0.001,
+    noiseSpeed:0.00015,
+    flowStrength:0.6,
+    blobCount:6,
+    blobSize:0.4,
+    blobAlpha:0.18,
+    rain:false,snow:false,flash:false,stars:false,
+    desc:"Sunset"
+  },
+  nightClear:{
+    colors:[[20,30,80],[15,20,60],[30,40,90],[10,15,50]],
+    bg:[5,5,15],
+    particleCount:0,
+    particleSize:[1,2],
+    particleSpeed:0,
+    particleAlpha:0,
+    noiseScale:0.001,
+    noiseSpeed:0.0001,
+    flowStrength:0.2,
+    blobCount:4,
+    blobSize:0.25,
+    blobAlpha:0.06,
+    rain:false,snow:false,flash:false,
+    stars:true,starCount:120,shootingStarChance:0.001,
+    desc:"Clear Night"
+  },
+  nightCloudy:{
+    colors:[[30,35,50],[25,30,45],[35,40,55],[20,25,40]],
+    bg:[8,10,18],
+    particleCount:0,
+    particleSize:[1,2],
+    particleSpeed:0,
+    particleAlpha:0,
+    noiseScale:0.0008,
+    noiseSpeed:0.00015,
+    flowStrength:0.3,
+    blobCount:8,
+    blobSize:0.45,
+    blobAlpha:0.08,
+    rain:false,snow:false,flash:false,stars:false,
+    desc:"Cloudy Night"
+  },
+  nightRain:{
+    colors:[[20,30,60],[15,25,50],[25,35,70],[10,20,45]],
+    bg:[5,8,15],
+    particleCount:0,
+    particleSize:[1,2],
+    particleSpeed:0,
+    particleAlpha:0,
+    noiseScale:0.0015,
+    noiseSpeed:0.0003,
+    flowStrength:0.5,
+    blobCount:5,
+    blobSize:0.3,
+    blobAlpha:0.06,
+    rain:true,rainCount:180,rainSpeed:9,rainAngle:0.12,
+    snow:false,flash:false,stars:false,
+    desc:"Rainy Night"
+  },
+};
+
+// ─── CANVAS RENDERER ───
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W+'px';
+  canvas.style.height = H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Interpolation state
+let currentMood = MOODS.clear;
+let targetMood = MOODS.clear;
+let moodT = 1; // 0..1 transition progress
+const TRANSITION_DURATION = 2000; // ms
+let transitionStart = 0;
+
+function lerpVal(a,b,t){ return a+(b-a)*t; }
+function lerpColor(a,b,t){ return [lerpVal(a[0],b[0],t),lerpVal(a[1],b[1],t),lerpVal(a[2],b[2],t)]; }
+function lerpMoodColors(a,b,t){
+  const maxLen = Math.max(a.length, b.length);
+  const result = [];
+  for(let i=0;i<maxLen;i++){
+    const ca = a[Math.min(i, a.length-1)];
+    const cb = b[Math.min(i, b.length-1)];
+    result.push(lerpColor(ca,cb,t));
+  }
+  return result;
+}
+
+function getMood(t){
+  if(t>=1) return targetMood;
+  const m = {};
+  const keys = ['particleCount','particleSpeed','particleAlpha','noiseScale','noiseSpeed',
+    'flowStrength','blobCount','blobSize','blobAlpha','rainCount','rainSpeed','rainAngle',
+    'snowCount','snowSpeed','starCount'];
+  for(const k of keys) m[k] = lerpVal(currentMood[k]||0, targetMood[k]||0, t);
+  m.colors = lerpMoodColors(currentMood.colors, targetMood.colors, t);
+  m.bg = lerpColor(currentMood.bg, targetMood.bg, t);
+  m.particleSize = [
+    lerpVal((currentMood.particleSize||[1,2])[0],(targetMood.particleSize||[1,2])[0],t),
+    lerpVal((currentMood.particleSize||[1,2])[1],(targetMood.particleSize||[1,2])[1],t),
+  ];
+  // Booleans: switch at midpoint
+  m.rain = t<0.5 ? currentMood.rain : targetMood.rain;
+  m.snow = t<0.5 ? currentMood.snow : targetMood.snow;
+  m.flash = t<0.5 ? currentMood.flash : targetMood.flash;
+  m.stars = t<0.5 ? currentMood.stars : targetMood.stars;
+  m.flashInterval = targetMood.flashInterval||4000;
+  m.shootingStarChance = targetMood.shootingStarChance||0;
+  m.desc = targetMood.desc;
+  return m;
+}
+
+function setMood(mood){
+  if(moodT<1){
+    currentMood = getMood(moodT);
+  } else {
+    currentMood = targetMood;
+  }
+  targetMood = mood;
+  moodT = 0;
+  transitionStart = performance.now();
+}
+
+// Particles (dust motes / ambient)
+let particles = [];
+function initParticles(count){
+  particles = [];
+  for(let i=0;i<200;i++){
+    particles.push({
+      x: Math.random()*W,
+      y: Math.random()*H,
+      vx:0, vy:0,
+      size: 1+Math.random()*4,
+      life: Math.random(),
+    });
+  }
+}
+initParticles(200);
+
+// Rain drops
+let raindrops = [];
+function ensureRain(count){
+  while(raindrops.length < count){
+    raindrops.push({
+      x: Math.random()*W*1.3 - W*0.15,
+      y: Math.random()*H*1.2 - H*0.1,
+      len: 10+Math.random()*20,
+      speed: 0.7+Math.random()*0.6,
+    });
+  }
+}
+
+// Snow
+let snowflakes = [];
+function ensureSnow(count){
+  while(snowflakes.length < count){
+    snowflakes.push({
+      x: Math.random()*W,
+      y: Math.random()*H,
+      size: 1+Math.random()*3,
+      speed: 0.3+Math.random()*0.7,
+      wobble: Math.random()*Math.PI*2,
+      wobbleSpeed: 0.01+Math.random()*0.02,
+    });
+  }
+}
+
+// Stars
+let stars = [];
+function ensureStars(count){
+  while(stars.length < count){
+    stars.push({
+      x: Math.random()*W,
+      y: Math.random()*H,
+      size: 0.5+Math.random()*1.5,
+      twinkle: Math.random()*Math.PI*2,
+      twinkleSpeed: 0.02+Math.random()*0.04,
+    });
+  }
+}
+
+// Shooting star
+let shootingStar = null;
+
+// Lightning flash
+let flashAlpha = 0;
+let lastFlash = 0;
+
+let time = 0;
+
+function draw(ts){
+  requestAnimationFrame(draw);
+  const dt = 1/60;
+  time += dt;
+
+  // Transition
+  if(moodT < 1){
+    moodT = Math.min(1, (ts - transitionStart) / TRANSITION_DURATION);
+    // Ease in-out
+    moodT = moodT < 0.5 ? 2*moodT*moodT : 1 - Math.pow(-2*moodT+2,2)/2;
+  }
+  const m = getMood(moodT);
+
+  // Background
+  const bg = m.bg;
+  ctx.fillStyle = `rgb(${bg[0]|0},${bg[1]|0},${bg[2]|0})`;
+  ctx.fillRect(0,0,W,H);
+
+  // Noise-driven blobs
+  const blobCount = Math.round(m.blobCount);
+  for(let i=0;i<blobCount;i++){
+    const phase = (i/blobCount)*Math.PI*2;
+    const nx = noise2D(i*1.7 + time*m.noiseSpeed*500, time*m.noiseSpeed*300);
+    const ny = noise2D(i*2.3 + 100, time*m.noiseSpeed*500 + 50);
+    const cx = W*0.5 + W*0.4*Math.sin(phase + time*0.05 + nx*2);
+    const cy = H*0.5 + H*0.4*Math.cos(phase*0.7 + time*0.04 + ny*2);
+    const radius = Math.max(W,H) * m.blobSize * (0.6 + 0.4*noise2D(i*3.1+time*m.noiseSpeed*200, 0));
+
+    const ci = i % m.colors.length;
+    const col = m.colors[ci];
+    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,radius);
+    grad.addColorStop(0, `rgba(${col[0]|0},${col[1]|0},${col[2]|0},${m.blobAlpha})`);
+    grad.addColorStop(1, `rgba(${col[0]|0},${col[1]|0},${col[2]|0},0)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // Flow field particles
+  const pCount = Math.min(Math.round(m.particleCount), particles.length);
+  for(let i=0;i<pCount;i++){
+    const p = particles[i];
+    const n = fbm(p.x*m.noiseScale + time*m.noiseSpeed*100, p.y*m.noiseScale + time*m.noiseSpeed*80, 3);
+    const angle = n * Math.PI * 4;
+    p.vx += Math.cos(angle)*m.flowStrength*0.5;
+    p.vy += Math.sin(angle)*m.flowStrength*0.5;
+    p.vx *= 0.95;
+    p.vy *= 0.95;
+    p.x += p.vx * m.particleSpeed;
+    p.y += p.vy * m.particleSpeed;
+    if(p.x<-20) p.x=W+20;
+    if(p.x>W+20) p.x=-20;
+    if(p.y<-20) p.y=H+20;
+    if(p.y>H+20) p.y=-20;
+    p.life += 0.005;
+    const alpha = m.particleAlpha * (0.5+0.5*Math.sin(p.life*3));
+    const sz = lerpVal(m.particleSize[0], m.particleSize[1], (Math.sin(p.life*2)+1)/2);
+    const ci = i % m.colors.length;
+    const col = m.colors[ci];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, sz, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${col[0]|0},${col[1]|0},${col[2]|0},${alpha})`;
+    ctx.fill();
+  }
+
+  // Rain
+  if(m.rain){
+    const rc = Math.round(m.rainCount);
+    ensureRain(rc);
+    const rainAngle = m.rainAngle || 0.15;
+    const rainSpd = m.rainSpeed || 8;
+    ctx.strokeStyle = `rgba(${m.colors[0][0]|0},${m.colors[0][1]|0},${m.colors[0][2]|0},0.25)`;
+    ctx.lineWidth = 1;
+    for(let i=0;i<rc && i<raindrops.length;i++){
+      const r = raindrops[i];
+      r.y += rainSpd * r.speed;
+      r.x += rainSpd * rainAngle * r.speed;
+      if(r.y > H + 20){
+        r.y = -20;
+        r.x = Math.random()*W*1.3 - W*0.15;
+      }
+      ctx.beginPath();
+      ctx.moveTo(r.x, r.y);
+      ctx.lineTo(r.x - r.len*rainAngle, r.y - r.len);
+      ctx.stroke();
+    }
+  }
+
+  // Snow
+  if(m.snow){
+    const sc = Math.round(m.snowCount);
+    ensureSnow(sc);
+    for(let i=0;i<sc && i<snowflakes.length;i++){
+      const s = snowflakes[i];
+      s.wobble += s.wobbleSpeed;
+      s.y += (m.snowSpeed||1.5) * s.speed;
+      s.x += Math.sin(s.wobble)*0.5;
+      if(s.y > H+10){
+        s.y = -10;
+        s.x = Math.random()*W;
+      }
+      const alpha = 0.3+0.3*Math.sin(s.wobble);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.fill();
+    }
+  }
+
+  // Stars
+  if(m.stars){
+    const stc = Math.round(m.starCount||100);
+    ensureStars(stc);
+    for(let i=0;i<stc && i<stars.length;i++){
+      const s = stars[i];
+      s.twinkle += s.twinkleSpeed;
+      const alpha = 0.3+0.7*((Math.sin(s.twinkle)+1)/2);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(220,230,255,${alpha})`;
+      ctx.fill();
+    }
+    // Shooting star
+    if(!shootingStar && Math.random() < (m.shootingStarChance||0)){
+      shootingStar = {
+        x: Math.random()*W*0.8,
+        y: Math.random()*H*0.3,
+        vx: 6+Math.random()*4,
+        vy: 2+Math.random()*3,
+        life: 1,
+      };
+    }
+    if(shootingStar){
+      const ss = shootingStar;
+      ss.x += ss.vx;
+      ss.y += ss.vy;
+      ss.life -= 0.02;
+      if(ss.life <= 0){
+        shootingStar = null;
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(ss.x, ss.y);
+        ctx.lineTo(ss.x - ss.vx*4, ss.y - ss.vy*4);
+        const g = ctx.createLinearGradient(ss.x,ss.y, ss.x-ss.vx*4, ss.y-ss.vy*4);
+        g.addColorStop(0, `rgba(255,255,255,${ss.life})`);
+        g.addColorStop(1, `rgba(255,255,255,0)`);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Lightning flash
+  if(m.flash){
+    if(ts - lastFlash > (m.flashInterval||4000) + Math.random()*3000){
+      flashAlpha = 0.8 + Math.random()*0.2;
+      lastFlash = ts;
+    }
+  }
+  if(flashAlpha > 0){
+    ctx.fillStyle = `rgba(200,210,255,${flashAlpha})`;
+    ctx.fillRect(0,0,W,H);
+    flashAlpha *= 0.85;
+    if(flashAlpha < 0.01) flashAlpha = 0;
+  }
+
+  // Subtle vignette
+  const vg = ctx.createRadialGradient(W/2,H/2,W*0.2,W/2,H/2,W*0.8);
+  vg.addColorStop(0,'rgba(0,0,0,0)');
+  vg.addColorStop(1,'rgba(0,0,0,0.4)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0,0,W,H);
+}
+
+requestAnimationFrame(draw);
+
+// ─── BOOK GRID ───
+const grid = document.getElementById('grid');
+BOOKS.forEach((b,i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `<img src="${b.c}" alt="${b.t}" loading="lazy"><div class="card-title">${b.t}</div><div class="card-author">${b.a}</div>`;
+  card.addEventListener('click', () => openModal(i));
+  grid.appendChild(card);
+});
+
+// ─── MODAL ───
+const overlay = document.getElementById('modal-overlay');
+const modalClose = document.getElementById('modal-close');
+
+function openModal(i){
+  const b = BOOKS[i];
+  document.getElementById('modal-img').src = b.c;
+  document.getElementById('modal-title').textContent = b.t;
+  document.getElementById('modal-author').textContent = b.a;
+  document.getElementById('modal-genre').textContent = b.g;
+  overlay.classList.add('open');
+}
+function closeModal(){ overlay.classList.remove('open'); }
+modalClose.addEventListener('click', closeModal);
+overlay.addEventListener('click', e => { if(e.target===overlay) closeModal(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+// ─── CITY CHIPS ───
+const chipsEl = document.getElementById('chips');
+let activeChip = null;
+
+CITIES.forEach((c,i) => {
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  chip.textContent = c.name;
+  chip.addEventListener('click', () => selectCity(c, chip));
+  chipsEl.appendChild(chip);
+});
+
+function selectCity(city, chipEl){
+  if(activeChip) activeChip.classList.remove('active');
+  if(chipEl){ chipEl.classList.add('active'); activeChip = chipEl; }
+  fetchWeather(city.lat, city.lon, city.name);
+}
+
+// ─── SEARCH ───
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('search-results');
+let searchTimeout;
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  const q = searchInput.value.trim();
+  if(q.length < 2){ searchResults.classList.remove('show'); return; }
+  searchTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`);
+      const data = await res.json();
+      if(!data.results||!data.results.length){ searchResults.classList.remove('show'); return; }
+      searchResults.innerHTML = '';
+      data.results.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'search-result';
+        div.innerHTML = `${r.name}<small>${r.country||''}</small>`;
+        div.addEventListener('click', () => {
+          searchInput.value = r.name;
+          searchResults.classList.remove('show');
+          if(activeChip) activeChip.classList.remove('active');
+          activeChip = null;
+          fetchWeather(r.latitude, r.longitude, r.name);
+        });
+        searchResults.appendChild(div);
+      });
+      searchResults.classList.add('show');
+    } catch(e){}
+  }, 300);
+});
+
+searchInput.addEventListener('blur', () => {
+  setTimeout(() => searchResults.classList.remove('show'), 200);
+});
+
+// ─── WEATHER ───
+const badge = document.getElementById('badge-text');
+
+function classifyWeather(code, isNight){
+  if(code <= 1){
+    if(isNight) return 'nightClear';
+    return 'clear';
+  }
+  if(code === 2){
+    return isNight ? 'nightCloudy' : 'cloudy';
+  }
+  if(code === 3) return 'overcast';
+  if(code >= 45 && code <= 48) return 'fog';
+  if(code >= 51 && code <= 67){
+    return isNight ? 'nightRain' : 'rain';
+  }
+  if(code >= 71 && code <= 86) return 'snow';
+  if(code >= 95) return 'storm';
+  return isNight ? 'nightClear' : 'clear';
+}
+
+function isSunsetHour(currentTime, sunrise, sunset){
+  // Check if within ~45min of sunrise/sunset
+  if(!sunrise||!sunset) return false;
+  const ct = new Date(currentTime).getTime();
+  const sr = new Date(sunrise).getTime();
+  const ss = new Date(sunset).getTime();
+  const margin = 45*60*1000;
+  return (Math.abs(ct-sr)<margin || Math.abs(ct-ss)<margin);
+}
+
+const WMO_DESC = {
+  0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
+  45:'Fog',48:'Rime fog',51:'Light drizzle',53:'Drizzle',55:'Dense drizzle',
+  56:'Freezing drizzle',57:'Dense freezing drizzle',
+  61:'Slight rain',63:'Moderate rain',65:'Heavy rain',
+  66:'Freezing rain',67:'Heavy freezing rain',
+  71:'Slight snow',73:'Moderate snow',75:'Heavy snow',
+  77:'Snow grains',80:'Slight showers',81:'Moderate showers',82:'Violent showers',
+  85:'Slight snow showers',86:'Heavy snow showers',
+  95:'Thunderstorm',96:'Thunderstorm with hail',99:'Severe thunderstorm',
+};
+
+async function fetchWeather(lat, lon, name){
+  badge.textContent = `${name} \u00b7 Loading...`;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&daily=sunrise,sunset&timezone=auto&forecast_days=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const cw = data.current_weather;
+    const temp = Math.round(cw.temperature);
+    const code = cw.weathercode;
+    const sunrise = data.daily?.sunrise?.[0];
+    const sunset = data.daily?.sunset?.[0];
+    const currentTime = cw.time;
+
+    const isNight = cw.is_day === 0;
+    let moodKey;
+
+    if(isSunsetHour(currentTime, sunrise, sunset) && code <= 2){
+      moodKey = 'sunset';
+    } else {
+      moodKey = classifyWeather(code, isNight);
+    }
+
+    const desc = WMO_DESC[code] || 'Unknown';
+    badge.textContent = `${name} \u00b7 ${desc} \u00b7 ${temp}\u00b0C`;
+    setMood(MOODS[moodKey]);
+  } catch(e){
+    badge.textContent = `${name} \u00b7 Weather unavailable`;
+  }
+}
+
+// ─── INIT: IP GEOLOCATION ───
+async function init(){
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    const data = await res.json();
+    if(data.latitude && data.longitude){
+      const name = data.city || 'Your Location';
+      fetchWeather(data.latitude, data.longitude, name);
+      return;
+    }
+  } catch(e){}
+  // Fallback: New York
+  const ny = CITIES[0];
+  const chip = chipsEl.children[0];
+  chip.classList.add('active');
+  activeChip = chip;
+  fetchWeather(ny.lat, ny.lon, ny.name);
+}
+
+init();
+</script>
+</body>
+</html>
